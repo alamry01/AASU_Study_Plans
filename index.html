@@ -5,14 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AASU Course Map — All Majors</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#06070b;color:#e2e8f0;font-family:'DM Sans',sans-serif;overflow-x:hidden}
+  body{background:#05060a;color:#e2e8f0;font-family:'Outfit',sans-serif;overflow-x:hidden}
   ::selection{background:#f59e0b33}
-  ::-webkit-scrollbar{width:6px}
-  ::-webkit-scrollbar-track{background:#0a0b10}
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-track{background:#08090e}
   ::-webkit-scrollbar-thumb{background:#1e293b;border-radius:3px}
-  ::-webkit-scrollbar-thumb:hover{background:#334155}
+  .mono{font-family:'JetBrains Mono',monospace}
+  @media print{
+    body{background:#fff!important;color:#000!important;font-size:9pt}
+    .no-print{display:none!important}
+    .print-only{display:block!important}
+    .course-card{border:1px solid #ccc!important;background:#f9f9f9!important;opacity:1!important;page-break-inside:avoid}
+    .course-card *{color:#000!important}
+    .cat-header{color:#000!important;border-color:#ccc!important;background:#eee!important}
+    .stat-box{border:1px solid #ccc!important;background:#f5f5f5!important}
+    .stat-box *{color:#000!important}
+    h1{color:#000!important;-webkit-text-fill-color:#000!important}
+  }
+  .print-only{display:none}
 </style>
 </head>
 <body>
@@ -21,759 +33,187 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script type="text/babel">
-const {useState,useCallback,useMemo,useEffect,useRef} = React;
+const {useState,useMemo} = React;
 
-// ============================================================
-// COMPLETE COURSE DATABASE FOR ALL AASU MAJORS
-// Source: Official Major Sheets PDF (2023-2024 / 2024-2025)
-// ============================================================
-
-// ---- GENERAL EDUCATION (shared across all majors) ----
-const GEN_ED_COURSES = {
-  // Communication (9 CH)
-  ENL101:{name:"English for Academic Studies",ch:3,cat:"gen",pre:[]},
-  ENL102:{name:"English Composition",ch:3,cat:"gen",pre:["ENL101"]},
-  ENL201:{name:"Writing and Research",ch:3,cat:"gen",pre:["ENL102"]},
-  // Innovation & Creativity (6 CH) - GEN150 compulsory + 1 elective
-  GEN150:{name:"Professionalism and Ethics",ch:3,cat:"gen",pre:[]},
-  GEN131:{name:"Creativity and Problem Solving",ch:3,cat:"gen-elec",pre:[]},
-  BUS101:{name:"Entrepreneurship Essentials",ch:3,cat:"gen-elec",pre:[]},
-  ENI110:{name:"Intro. to Innovation and Creativity",ch:3,cat:"gen-elec",pre:[]},
-  ENI140:{name:"Design Thinking",ch:3,cat:"gen-elec",pre:[]},
-  ENI150:{name:"Innovation in Business Models",ch:3,cat:"gen-elec",pre:[]},
-  ENI160:{name:"Innovation and Globalization",ch:3,cat:"gen-elec",pre:[]},
-  // Global Citizen (6 CH) - INF120 compulsory + 1 elective
-  INF120:{name:"Computers and Information Systems",ch:3,cat:"gen",pre:[]},
-  GEN201:{name:"Globalization and Sustainability",ch:3,cat:"gen-elec",pre:[]},
-  GEN202:{name:"Global Citizenship in the Digital Age",ch:3,cat:"gen-elec",pre:[]},
-  BUS201:{name:"Global Economics and Trade",ch:3,cat:"gen-elec",pre:[]},
-  // Art & Humanities (9 CH) - HST101 compulsory + 1 from group I + 1 from group II
-  HST101:{name:"Islamic Culture and Values",ch:3,cat:"gen",pre:[]},
-  HST102:{name:"Kuwait History",ch:3,cat:"gen-elec",pre:[]},
-  ARB101:{name:"Arabic Communication Skills",ch:3,cat:"gen-elec",pre:[]},
-  ART101:{name:"Art Appreciation",ch:3,cat:"gen-elec",pre:[]},
-  ART102:{name:"Intro. to Media and Communication",ch:3,cat:"gen-elec",pre:[]},
-  PHL101:{name:"Introduction to Philosophy",ch:3,cat:"gen-elec",pre:[]},
-  LAW101:{name:"Law and Society",ch:3,cat:"gen-elec",pre:[]},
-  PSY101:{name:"Introduction to Psychology",ch:3,cat:"gen-elec",pre:[]},
-  SOC101:{name:"Introduction to Sociology",ch:3,cat:"gen-elec",pre:[]},
-  BUS300:{name:"Career Planning",ch:3,cat:"gen-elec",pre:[]},
+// GEN ED shared across all majors
+const GEN_ED = {
+  ENL101:{name:"English for Academic Studies",ch:3,cat:"gen",pre:[],g:"Communication"},
+  ENL102:{name:"English Composition",ch:3,cat:"gen",pre:["ENL101"],g:"Communication"},
+  ENL201:{name:"Writing and Research",ch:3,cat:"gen",pre:["ENL102"],g:"Communication"},
+  GEN150:{name:"Professionalism and Ethics",ch:3,cat:"gen",pre:[],g:"Innovation & Creativity"},
+  INF120:{name:"Computers and Information Systems",ch:3,cat:"gen",pre:[],g:"Global Citizen"},
+  HST101:{name:"Islamic Culture and Values",ch:3,cat:"gen",pre:[],g:"Art & Humanities"},
+  GEN131:{name:"Creativity and Problem Solving",ch:3,cat:"gen-elec",pre:[],g:"Innovation Elective (pick 1)"},
+  BUS101:{name:"Entrepreneurship Essentials",ch:3,cat:"gen-elec",pre:[],g:"Innovation Elective (pick 1)"},
+  ENI110x:{name:"Intro to Innovation & Creativity",ch:3,cat:"gen-elec",pre:[],g:"Innovation Elective (pick 1)"},
+  ENI140x:{name:"Design Thinking",ch:3,cat:"gen-elec",pre:[],g:"Innovation Elective (pick 1)"},
+  ENI150x:{name:"Innovation in Business Models",ch:3,cat:"gen-elec",pre:[],g:"Innovation Elective (pick 1)"},
+  ENI160x:{name:"Innovation and Globalization",ch:3,cat:"gen-elec",pre:[],g:"Innovation Elective (pick 1)"},
+  GEN201:{name:"Globalization and Sustainability",ch:3,cat:"gen-elec",pre:[],g:"Global Citizen Elective (pick 1)"},
+  GEN202:{name:"Global Citizenship in Digital Age",ch:3,cat:"gen-elec",pre:[],g:"Global Citizen Elective (pick 1)"},
+  BUS201:{name:"Global Economics and Trade",ch:3,cat:"gen-elec",pre:[],g:"Global Citizen Elective (pick 1)"},
+  HST102:{name:"Kuwait History",ch:3,cat:"gen-elec",pre:[],g:"Art Group I (pick 1)"},
+  ARB101:{name:"Arabic Communication Skills",ch:3,cat:"gen-elec",pre:[],g:"Art Group I (pick 1)"},
+  ART101:{name:"Art Appreciation",ch:3,cat:"gen-elec",pre:[],g:"Art Group I (pick 1)"},
+  ART102:{name:"Intro to Media & Communication",ch:3,cat:"gen-elec",pre:[],g:"Art Group I (pick 1)"},
+  PHL101:{name:"Introduction to Philosophy",ch:3,cat:"gen-elec",pre:[],g:"Art Group II (pick 1)"},
+  LAW101:{name:"Law and Society",ch:3,cat:"gen-elec",pre:[],g:"Art Group II (pick 1)"},
+  PSY101:{name:"Introduction to Psychology",ch:3,cat:"gen-elec",pre:[],g:"Art Group II (pick 1)"},
+  SOC101:{name:"Introduction to Sociology",ch:3,cat:"gen-elec",pre:[],g:"Art Group II (pick 1)"},
+  BUS300:{name:"Career Planning",ch:3,cat:"gen-elec",pre:[],g:"Art Group II (pick 1)"},
 };
 
-// Math & Science for Engineering/CS majors
-const MATH_SCI_ENG = {
-  MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},
-  PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"},
+// MAJORS - each has genMath, college, program, elective as separate objects
+// Critical paths verified against PDF prerequisites
+const M={
+SWE:{name:"Software Engineering",abbr:"SWE",ch:132,color:"#ef4444",cp:["MAT120","CCS120","CCS220","CCS230","SWE301"],cpd:"MAT120 → CCS120 → CCS220 → CCS230 → SWE301",er:"Pick 2 (6 CH)",
+gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},
+c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT221:{name:"Number Theory",ch:3,cat:"college",pre:["MAT102"]},MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},SCI:{name:"Biology I or Chemistry I",ch:3,cat:"college",pre:[]},SCILAB:{name:"Bio/Chem Lab",ch:1,cat:"college",pre:[]},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},CCS120:{name:"Comp. Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},CCS121:{name:"Comp. Thinking Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},CCS200:{name:"Digital Logic & Design",ch:3,cat:"college-cs",pre:["PHY101"]},CCS220:{name:"OOP Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},CCS221:{name:"OOP Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},CCS230:{name:"Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},CCS231:{name:"Database Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},CCS241:{name:"Computer Networks",ch:3,cat:"college-cs",pre:["CCS200"]},CCS270:{name:"Data Structures & Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},CCS271:{name:"DS & Algo Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},CCS320:{name:"Operating Systems",ch:3,cat:"college-cs",pre:["CCS270"]},CCS330:{name:"Web Engineering",ch:3,cat:"college-cs",pre:["CCS230"]},CCS331:{name:"Web Engineering Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS330"}},
+p:{SWE301:{name:"Software Process & Methodologies",ch:3,cat:"program",pre:["CCS230"]},SWE305:{name:"Requirements Engineering",ch:3,cat:"program",pre:["CCS230"]},SWE306:{name:"Requirements Eng Lab",ch:1,cat:"program",pre:[],coreq:"SWE305"},SWE310:{name:"Human-Computer Interaction",ch:3,cat:"program",pre:["SWE301"]},SWE311:{name:"HCI Lab",ch:1,cat:"program",pre:[],coreq:"SWE310"},SWE340:{name:"Software Design & Architecture",ch:3,cat:"program",pre:["SWE305"]},SWE341:{name:"Design & Architecture Lab",ch:1,cat:"program",pre:[],coreq:"SWE340"},SWE345:{name:"Software Modelling & Analysis",ch:3,cat:"program",pre:["SWE301"]},SWE420:{name:"Software Construction & Evolution",ch:3,cat:"program",pre:["SWE340"]},SWE421:{name:"Construction Lab",ch:1,cat:"program",pre:[],coreq:"SWE420"},SWE430:{name:"Software Testing & QA",ch:3,cat:"program",pre:["SWE340"]},SWE431:{name:"Testing Lab",ch:1,cat:"program",pre:[],coreq:"SWE430"},SWE440:{name:"Software Security & Analysis",ch:3,cat:"program",pre:["SWE430"]},SWE490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},SWE491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["SWE490"]}},
+e:{SWE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},SWE441:{name:"Software Reliability & Quality",ch:3,cat:"elective",pre:["SWE340"]},SWE442:{name:"Software Engineering Ethics",ch:3,cat:"elective",pre:["SWE305"]},SWE443:{name:"Software Project Management",ch:3,cat:"elective",pre:["SWE340","SWE345"]},SWE444:{name:"Modern Software Methodologies",ch:3,cat:"elective",pre:["SWE345"]},SWE445:{name:"Software Dev & Maintenance",ch:3,cat:"elective",pre:["SWE340"]},SWE447:{name:"Cloud Computing",ch:3,cat:"elective",pre:["CCS330"]},SWE495:{name:"Special Topics in SWE",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+DAI:{name:"Data Science and AI",abbr:"DAI",ch:120,color:"#8b5cf6",cp:["MAT120","DAI230","DAI250","DAI310"],cpd:"MAT120 → DAI230 → DAI250 → DAI310 (Discrete Math is the gate)",er:"Pick 2 (6 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},SCI:{name:"Biology I or Chemistry I",ch:3,cat:"college",pre:[]},SCILAB:{name:"Bio/Chem Lab",ch:1,cat:"college",pre:[]},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},CCS120:{name:"Comp. Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},CCS121:{name:"Comp. Thinking Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},CCS220:{name:"OOP Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},CCS221:{name:"OOP Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},CCS230:{name:"Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},CCS231:{name:"Database Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},CCS270:{name:"Data Structures & Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},CCS271:{name:"DS & Algo Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},CCS342:{name:"IT Infrastructure",ch:3,cat:"college-cs",pre:["INF120"]},CCS330:{name:"Web Engineering",ch:3,cat:"college-cs",pre:["CCS230"]},CCS331:{name:"Web Engineering Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS330"}},p:{DAI230:{name:"Math for DS & AI",ch:3,cat:"program",pre:["MAT120"]},DAI250:{name:"Fundamentals of DS & AI",ch:3,cat:"program",pre:["DAI230"]},DAI251:{name:"DS & AI Lab",ch:1,cat:"program",pre:[],coreq:"DAI250"},DAI310:{name:"Machine Learning",ch:3,cat:"program",pre:["DAI250"]},DAI311:{name:"ML Lab",ch:1,cat:"program",pre:[],coreq:"DAI310"},DAI330:{name:"Data Warehousing & Mining",ch:3,cat:"program",pre:["CCS230"]},DAI331:{name:"Data Warehousing Lab",ch:1,cat:"program",pre:[],coreq:"DAI330"},DAI351:{name:"Advanced Machine Learning",ch:3,cat:"program",pre:["DAI310"]},DAI352:{name:"Advanced ML Lab",ch:1,cat:"program",pre:[],coreq:"DAI351"},DAI374:{name:"Data Ethics & Governance",ch:3,cat:"program",pre:["DAI351"]},DAI421:{name:"Data Analytics & Visualization",ch:3,cat:"program",pre:["DAI250"]},DAI430:{name:"Big Data Systems",ch:3,cat:"program",pre:["DAI330"]},DAI431:{name:"Big Data Lab",ch:1,cat:"program",pre:[],coreq:"DAI430"},DAI440:{name:"Distributed Computing",ch:3,cat:"program",pre:["CCS342"]},DAI490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["87CH"]},DAI491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["DAI490"]}},e:{DAI480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},DAI432:{name:"Security of DS & AI",ch:3,cat:"elective",pre:["DAI330","DAI351"]},DAI462:{name:"Computer Vision",ch:3,cat:"elective",pre:["DAI351"]},DAI463:{name:"Natural Language Processing",ch:3,cat:"elective",pre:["DAI351"]},DAI475:{name:"Business Intelligence",ch:3,cat:"elective",pre:["DAI351"]},DAI476:{name:"Risk Analytics",ch:3,cat:"elective",pre:["DAI330"]},DAI495:{name:"Special Topics DS",ch:3,cat:"elective",pre:["APPROVAL"]},DAI496:{name:"Special Topics AI",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+CSE:{name:"Cybersecurity Engineering",abbr:"CSE",ch:132,color:"#06b6d4",cp:["MAT101","MAT202","CSE210","CSE310"],cpd:"MAT101 → MAT202 (Linear Algebra) → CSE210 → CSE310",er:"Pick 2 (6 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT221:{name:"Number Theory",ch:3,cat:"college",pre:["MAT102"]},MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},SCI:{name:"Biology I or Chemistry I",ch:3,cat:"college",pre:[]},SCILAB:{name:"Bio/Chem Lab",ch:1,cat:"college",pre:[]},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},CCS120:{name:"Comp. Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},CCS121:{name:"Comp. Thinking Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},CCS200:{name:"Digital Logic & Design",ch:3,cat:"college-cs",pre:["PHY101"]},CCS220:{name:"OOP Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},CCS221:{name:"OOP Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},CCS230:{name:"Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},CCS231:{name:"Database Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},CCS241:{name:"Computer Networks",ch:3,cat:"college-cs",pre:["CCS200"]},CCS270:{name:"Data Structures & Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},CCS271:{name:"DS & Algo Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},CCS320:{name:"Operating Systems",ch:3,cat:"college-cs",pre:["CCS270"]},CCS330:{name:"Web Engineering",ch:3,cat:"college-cs",pre:["CCS230"]},CCS331:{name:"Web Engineering Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS330"}},p:{CSE210:{name:"Fundamentals of Cybersecurity",ch:3,cat:"program",pre:["MAT202"]},CSE310:{name:"Cryptography & Data Security",ch:3,cat:"program",pre:["CSE210"]},CSE311:{name:"Cryptography Lab",ch:1,cat:"program",pre:[],coreq:"CSE310"},CSE325:{name:"Cybersecurity Risk Management",ch:3,cat:"program",pre:["CSE210"]},CSE326:{name:"Risk Management Lab",ch:1,cat:"program",pre:[],coreq:"CSE325"},CSE341:{name:"Network Security",ch:3,cat:"program",pre:["CCS241"]},CSE360:{name:"Ethical Hacking & Cyber Laws",ch:3,cat:"program",pre:["GEN150","CSE210"]},CSE410:{name:"Digital Forensics",ch:3,cat:"program",pre:["CSE310"]},CSE411:{name:"Digital Forensics Lab",ch:1,cat:"program",pre:[],coreq:"CSE410"},CSE420:{name:"Software Security",ch:3,cat:"program",pre:["CCS320"]},CSE421:{name:"Software Security Lab",ch:1,cat:"program",pre:[],coreq:"CSE420"},CSE430:{name:"Web Security",ch:3,cat:"program",pre:["CSE210","CCS330"]},CSE431:{name:"Web Security Lab",ch:1,cat:"program",pre:[],coreq:"CSE430"},CSE490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},CSE491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["CSE490"]}},e:{CSE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},CSE441:{name:"Distributed Network Security",ch:3,cat:"elective",pre:["CSE341"]},CSE442:{name:"IT Infrastructure Protection",ch:3,cat:"elective",pre:["CSE325"]},CSE443:{name:"Cybersecurity Governance",ch:3,cat:"elective",pre:["CSE360"]},CSE445:{name:"OS Security",ch:3,cat:"elective",pre:["CCS320"]},CSE446:{name:"AI for Cybersecurity",ch:3,cat:"elective",pre:["CSE310"]},CSE495:{name:"Special Topics in Cybersecurity",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+CME:{name:"Computer Systems Engineering",abbr:"CME",ch:132,color:"#10b981",cp:["PHY101","CCS200","CME310","CME420"],cpd:"PHY101 → CCS200 (Digital Logic) → CME310 → CME420",er:"Pick 2 (6 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT221:{name:"Number Theory",ch:3,cat:"college",pre:["MAT102"]},MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},SCI:{name:"Biology I or Chemistry I",ch:3,cat:"college",pre:[]},SCILAB:{name:"Bio/Chem Lab",ch:1,cat:"college",pre:[]},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},CCS120:{name:"Comp. Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},CCS121:{name:"Comp. Thinking Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},CCS200:{name:"Digital Logic & Design",ch:3,cat:"college-cs",pre:["PHY101"]},CCS220:{name:"OOP Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},CCS221:{name:"OOP Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},CCS230:{name:"Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},CCS231:{name:"Database Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},CCS241:{name:"Computer Networks",ch:3,cat:"college-cs",pre:["CCS200"]},CCS270:{name:"Data Structures & Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},CCS271:{name:"DS & Algo Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},CCS320:{name:"Operating Systems",ch:3,cat:"college-cs",pre:["CCS270"]}},p:{ENG205:{name:"Electrical & Electronic Circuits",ch:3,cat:"program",pre:["PHY102","MAT102"]},ENG206:{name:"Circuits Lab",ch:1,cat:"program",pre:["ENG205","PHY107"]},CME220:{name:"Intro to Computer Systems Eng",ch:3,cat:"program",pre:["CCS200"]},CME310:{name:"Computer Architecture",ch:3,cat:"program",pre:["CCS200"]},CME311:{name:"Architecture Lab",ch:1,cat:"program",pre:[],coreq:"CME310"},CME341:{name:"Systems & Signal Processing",ch:3,cat:"program",pre:["ENG205"]},CME360:{name:"Network & System Security",ch:3,cat:"program",pre:["CCS241"]},CME410:{name:"Programming for CE",ch:3,cat:"program",pre:["CCS220"]},CME411:{name:"Programming for CE Lab",ch:1,cat:"program",pre:[],coreq:"CME410"},CME420:{name:"Embedded & Microprocessor Systems",ch:3,cat:"program",pre:["CME310"]},CME421:{name:"Embedded Systems Lab",ch:1,cat:"program",pre:[],coreq:"CME420"},CME430:{name:"Digital Systems Design",ch:3,cat:"program",pre:["CME310"]},CME431:{name:"Digital Systems Lab",ch:1,cat:"program",pre:[],coreq:"CME430"},CME490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},CME491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["CME490"]}},e:{CME480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},CCS330:{name:"Web Engineering",ch:3,cat:"elective",pre:["CCS230"]},CME435:{name:"Formal Language & Automata",ch:3,cat:"elective",pre:["CCS270"]},CME440:{name:"Real-time Systems",ch:3,cat:"elective",pre:["CME310"]},CME441:{name:"VHDL Programming",ch:3,cat:"elective",pre:["CME410"]},CME442:{name:"Parallel & Distributed Computing",ch:3,cat:"elective",pre:["CME341"]},CME443:{name:"Simulation Modeling",ch:3,cat:"elective",pre:["CME310"]},CME444:{name:"Principles of AI",ch:3,cat:"elective",pre:["CME310"]},CME445:{name:"Blockchain Technology",ch:3,cat:"elective",pre:["CME310"]},CME446:{name:"Quantum Computing",ch:3,cat:"elective",pre:["CME310"]},CME495:{name:"Special Topics",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+DMK:{name:"Digital Marketing",abbr:"DMK",ch:120,color:"#f59e0b",cp:["BUS100","MRK103","DMK210","DMK310"],cpd:"BUS100 → MRK103 → DMK210 → DMK310",er:"Pick 3 (9 CH)",gm:{MAT100:{name:"Business Math",ch:3,cat:"gen",pre:[]},MAT210:{name:"Probability & Statistics",ch:3,cat:"gen",pre:["MAT100"]}},c:{BUS100:{name:"Intro to Business Admin",ch:3,cat:"college",pre:[]},ACC101:{name:"Principles of Accounting",ch:3,cat:"college",pre:["MAT100"]},FIN102:{name:"Principle of Finance",ch:3,cat:"college",pre:["MAT100"]},MRK103:{name:"Principle of Marketing",ch:3,cat:"college",pre:["BUS100"]},BUS200:{name:"Business Statistics",ch:3,cat:"college",pre:["MAT210"]},BUS220:{name:"Business Economics",ch:3,cat:"college",pre:["MAT210"]},MIS300:{name:"Management Info Systems",ch:3,cat:"college",pre:["INF120"]},MGT310:{name:"Organization Behaviour",ch:3,cat:"college",pre:["BUS100"]},MGT340:{name:"Operations Management",ch:3,cat:"college",pre:["MAT100","BUS100"]},BUS345:{name:"Business Law & Ethics",ch:3,cat:"college",pre:["BUS100"]},MGT101:{name:"Principles of Management",ch:3,cat:"college",pre:["BUS100"]}},p:{DMK210:{name:"Digital Marketing Fundamentals",ch:3,cat:"program",pre:["MRK103"]},DMK220:{name:"International Marketing",ch:3,cat:"program",pre:["MRK103"]},DMK225:{name:"Market Planning & Research",ch:3,cat:"program",pre:["MRK103"]},DMK230:{name:"Content Marketing",ch:3,cat:"program",pre:["DMK210"]},DMK310:{name:"Social Media Marketing",ch:3,cat:"program",pre:["DMK210"]},DMK315:{name:"E-commerce Marketing",ch:3,cat:"program",pre:["DMK210"]},DMK325:{name:"Digital Marketing Strategy",ch:3,cat:"program",pre:["DMK210","DMK225"]},DMK330:{name:"Customer Relations",ch:3,cat:"program",pre:["MRK103"]},DMK400:{name:"Internship in Marketing",ch:3,cat:"program",pre:["DMK230","DMK310"]},DMK420:{name:"Mobile App Marketing",ch:3,cat:"program",pre:["DMK210","DMK315"]},DMK440:{name:"Social Media Analytics",ch:3,cat:"program",pre:["MIS300","DMK310","DMK315"]},DMK460:{name:"Ad Campaign Management",ch:3,cat:"program",pre:["DMK310","DMK325"]},DMK475:{name:"Legal Issues in Digital Marketing",ch:3,cat:"program",pre:["GEN150","DMK310","DMK315"]},DMK490:{name:"Capstone Design",ch:3,cat:"program",pre:["87CH"]}},e:{DMK340:{name:"Influencer Marketing",ch:3,cat:"elective",pre:["DMK230"]},DMK320:{name:"Emerging Trends",ch:3,cat:"elective",pre:["DMK210","DMK325"]},DMK435:{name:"Brand Identity Design",ch:3,cat:"elective",pre:["DMK210"]},DMK445:{name:"Advanced Social Ads",ch:3,cat:"elective",pre:["DMK310"]},DMK450:{name:"Web Design & Dev",ch:3,cat:"elective",pre:["MIS300","DMK440"]},DMK465:{name:"Services Marketing",ch:3,cat:"elective",pre:["MRK103"]},DMK470:{name:"Advanced Web Analytics",ch:3,cat:"elective",pre:["DMK440"]},DMK480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},DMK495:{name:"Special Topics",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+ENI:{name:"Entrepreneurship & Innovation",abbr:"ENI",ch:120,color:"#ec4899",cp:["BUS100","MRK103","ENI200","ENI220"],cpd:"BUS100 → ACC101+MRK103 → ENI200 → ENI220",er:"Pick 3 (9 CH)",gm:{MAT100:{name:"Business Math",ch:3,cat:"gen",pre:[]},MAT210:{name:"Probability & Statistics",ch:3,cat:"gen",pre:["MAT100"]}},c:{BUS100:{name:"Intro to Business Admin",ch:3,cat:"college",pre:[]},ACC101:{name:"Principles of Accounting",ch:3,cat:"college",pre:["MAT100"]},FIN102:{name:"Principle of Finance",ch:3,cat:"college",pre:["MAT100"]},MRK103:{name:"Principle of Marketing",ch:3,cat:"college",pre:["BUS100"]},BUS200:{name:"Business Statistics",ch:3,cat:"college",pre:["MAT210"]},BUS220:{name:"Business Economics",ch:3,cat:"college",pre:["MAT210"]},MIS300:{name:"Management Info Systems",ch:3,cat:"college",pre:["INF120"]},MGT310:{name:"Organization Behaviour",ch:3,cat:"college",pre:["BUS100"]},MGT340:{name:"Operations Management",ch:3,cat:"college",pre:["MAT100","BUS100"]},BUS345:{name:"Business Law & Ethics",ch:3,cat:"college",pre:["BUS100"]},MGT101:{name:"Principles of Management",ch:3,cat:"college",pre:["BUS100"]}},p:{ENI200:{name:"Foundations of Mgmt & Entrepreneurship 1",ch:3,cat:"program",pre:["BUS100","ACC101","MRK103"]},ENI210:{name:"Business Analytics",ch:3,cat:"program",pre:["BUS220"]},ENI215:{name:"Entrepreneurship Leadership",ch:3,cat:"program",pre:["BUS100"]},ENI220:{name:"Foundations of Mgmt & Entrepreneurship 2",ch:3,cat:"program",pre:["ENI200"]},ENI225:{name:"Socio-Ecological Systems",ch:3,cat:"program",pre:["BUS100"]},ENI315:{name:"Strategic Problem Solving",ch:3,cat:"program",pre:["ENI220"]},ENI320:{name:"Commercialization & Pitching",ch:3,cat:"program",pre:["ENI220"]},ENI400:{name:"Internship in ENI",ch:3,cat:"program",pre:["MIS300","ENI220"]},ENI405:{name:"Business Models & Plan",ch:3,cat:"program",pre:["ENI215","ENI220"]},ENI410:{name:"Innovation & Sustainability",ch:3,cat:"program",pre:["ENI215","ENI225"]},ENI415:{name:"Entrepreneurship & E-commerce",ch:3,cat:"program",pre:["MIS300","MGT310","ENI220"]},ENI435:{name:"Entrepreneurial Marketing",ch:3,cat:"program",pre:["ENI320"]},ENI455:{name:"Managing Tech Innovation",ch:3,cat:"program",pre:["ENI410"]},ENI490:{name:"Capstone Design",ch:3,cat:"program",pre:["87CH"]}},e:{ENI425:{name:"Market Research",ch:3,cat:"elective",pre:["ENI435"]},ENI440:{name:"Entrepreneurship Finance",ch:3,cat:"elective",pre:["FIN102"]},ENI445:{name:"Managing Growing Business",ch:3,cat:"elective",pre:["ENI210"]},ENI446:{name:"Venture Capital",ch:3,cat:"elective",pre:["FIN102","BUS220"]},ENI450:{name:"Social Entrepreneurship",ch:3,cat:"elective",pre:["ENI225"]},ENI460:{name:"Ethical & Legal Issues",ch:3,cat:"elective",pre:["GEN150"]},ENI480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},ENI495:{name:"Special Topics",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+SCL:{name:"Supply Chain & Logistics",abbr:"SCL",ch:120,color:"#14b8a6",cp:["BUS100","MGT101","SCL203","SCL320","SCL340"],cpd:"BUS100 → MGT101 → SCL203 → SCL320 → SCL340",er:"Pick 3 (9 CH)",gm:{MAT100:{name:"Business Math",ch:3,cat:"gen",pre:[]},MAT210:{name:"Probability & Statistics",ch:3,cat:"gen",pre:["MAT100"]}},c:{BUS100:{name:"Intro to Business Admin",ch:3,cat:"college",pre:[]},ACC101:{name:"Principles of Accounting",ch:3,cat:"college",pre:["MAT100"]},FIN102:{name:"Principle of Finance",ch:3,cat:"college",pre:["MAT100"]},MRK103:{name:"Principle of Marketing",ch:3,cat:"college",pre:["BUS100"]},BUS200:{name:"Business Statistics",ch:3,cat:"college",pre:["MAT210"]},BUS220:{name:"Business Economics",ch:3,cat:"college",pre:["MAT210"]},MIS300:{name:"Management Info Systems",ch:3,cat:"college",pre:["INF120"]},MGT310:{name:"Organization Behaviour",ch:3,cat:"college",pre:["BUS100"]},MGT340:{name:"Operations Management",ch:3,cat:"college",pre:["MAT100","BUS100"]},BUS345:{name:"Business Law & Ethics",ch:3,cat:"college",pre:["BUS100"]},MGT101:{name:"Principles of Management",ch:3,cat:"college",pre:["BUS100"]}},p:{SCL201:{name:"Procurement Management",ch:3,cat:"program",pre:["MGT101"]},SCL202:{name:"Logistics Management",ch:3,cat:"program",pre:["BUS100"]},SCL203:{name:"Supply Chain Management",ch:3,cat:"program",pre:["MGT101"]},SCL310:{name:"Quantitative Methods",ch:3,cat:"program",pre:["BUS200"]},SCL315:{name:"Production & Operations",ch:3,cat:"program",pre:["SCL203"]},SCL320:{name:"Global Supply Chain Ops",ch:3,cat:"program",pre:["SCL203"]},SCL325:{name:"Enterprise Resource Planning",ch:3,cat:"program",pre:["SCL201","SCL202"]},SCL340:{name:"SC Risk Management",ch:3,cat:"program",pre:["SCL320"]},SCL400:{name:"Internship (SCL)",ch:3,cat:"program",pre:["MGT340","SCL203"]},SCL401:{name:"Business Process Integration",ch:3,cat:"program",pre:["MIS300","MGT340","SCL315"]},SCL402:{name:"Business Process Config",ch:3,cat:"program",pre:["MIS300","MGT340","SCL315"]},SCL410:{name:"SC Sustainability",ch:3,cat:"program",pre:["SCL340"]},SCL415:{name:"Strategic Management",ch:3,cat:"program",pre:["SCL340"]},SCL490:{name:"Capstone Design",ch:3,cat:"program",pre:["87CH"]}},e:{SCL420:{name:"Emerging Tech & SC",ch:3,cat:"elective",pre:["MIS300","MGT340"]},SCL430:{name:"AI in Logistics",ch:3,cat:"elective",pre:["MIS300"]},SCL435:{name:"Blockchain in SC",ch:3,cat:"elective",pre:["MIS300"]},SCL440:{name:"SC Strategy",ch:3,cat:"elective",pre:["SCL415"]},SCL445:{name:"Advanced Transportation",ch:3,cat:"elective",pre:["SCL202"]},SCL450:{name:"Decision Tools for SCM",ch:3,cat:"elective",pre:["SCL202"]},SCL455:{name:"Research & Negotiation",ch:3,cat:"elective",pre:["SCL415"]},SCL460:{name:"SC Planning & Inventory",ch:3,cat:"elective",pre:["SCL315","SCL415"]},SCL480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},SCL495:{name:"Special Topics",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+// Engineering majors with shared college structure
+BIE:{name:"Biomedical & Instruments Eng",abbr:"BIE",ch:132,color:"#e879f9",cp:["CHM101","BIE101","BIE203","BIE301","BIE304"],cpd:"CHM101 → BIE101 → BIE203 → BIE301 → BIE304",er:"Pick 3 (9 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Diff Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Energy & Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG204:{name:"Engineering Mechanics",ch:3,cat:"college",pre:["PHY102"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Project Mgmt & Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]}},p:{BIE101:{name:"Human Biology for Engineers",ch:3,cat:"program",pre:["CHM101"]},BIE201:{name:"Biochemistry",ch:3,cat:"program",pre:["CHM101","BIE101"]},BIE202:{name:"Biochemistry Lab",ch:1,cat:"program",pre:[],coreq:"BIE201"},BIE203:{name:"Anatomy & Physiology",ch:3,cat:"program",pre:["BIE101"]},BIE301:{name:"Biofluids & Transport",ch:3,cat:"program",pre:["ENG204","MAT240"]},BIE302:{name:"Biomaterials",ch:3,cat:"program",pre:["BIE203","BIE202"]},BIE303:{name:"Biomaterials Lab",ch:1,cat:"program",pre:[],coreq:"BIE302"},BIE304:{name:"Biomechanics",ch:3,cat:"program",pre:["BIE203","BIE301"]},BIE350:{name:"Signal & Control Systems",ch:3,cat:"program",pre:["ENG205","ENG304"]},BIE351:{name:"Signal Lab",ch:1,cat:"program",pre:[],coreq:"BIE350"},BIE352:{name:"Instrumentation & DAQ",ch:3,cat:"program",pre:["BIE350"]},BIE353:{name:"Instrumentation Lab",ch:1,cat:"program",pre:[],coreq:"BIE352"},BIE371:{name:"Medical Imaging",ch:3,cat:"program",pre:["MAT201","BIE350"]},BIE451:{name:"Instrumentation Design",ch:3,cat:"program",pre:["BIE352"]},BIE452:{name:"Instrumentation Design Lab",ch:1,cat:"program",pre:[],coreq:"BIE451"},BIE401:{name:"Molecular & Nano Devices",ch:3,cat:"program",pre:["BIE304","BIE371"]},BIE490:{name:"Capstone 1",ch:3,cat:"program",pre:["96CH"]},BIE491:{name:"Capstone 2",ch:3,cat:"program",pre:["BIE490"]}},e:{BIE453:{name:"Electromagnetics",ch:3,cat:"elective",pre:["BIE350"]},BIE454:{name:"Instrumentation Electronics",ch:3,cat:"elective",pre:["BIE350"]},BIE460:{name:"Process Instrumentation",ch:3,cat:"elective",pre:["BIE352"]},BIE461:{name:"Safety & Reliability",ch:3,cat:"elective",pre:["BIE451"]},BIE462:{name:"Communication Protocols",ch:3,cat:"elective",pre:["BIE352"]},BIE466:{name:"Sensors Design",ch:3,cat:"elective",pre:["BIE451"]},BIE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},BIE410:{name:"Human Movement Modeling",ch:3,cat:"elective",pre:["BIE302","BIE304"]},BIE412:{name:"Rehabilitation Eng",ch:3,cat:"elective",pre:["BIE304"]},BIE414:{name:"Image Processing",ch:3,cat:"elective",pre:["BIE371"]},BIE416:{name:"Medical Devices Design",ch:3,cat:"elective",pre:["BIE302","BIE304"]},BIE495:{name:"Special Topics BIE",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+RME:{name:"Robotics & Mechatronics Eng",abbr:"RME",ch:132,color:"#f97316",cp:["PHY102","ENG205","ENG209","RME301","RME401"],cpd:"PHY102 → ENG205+ENG209 → RME301 → RME401",er:"Pick 3 (9 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Diff Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Energy & Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics & Strength",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Project Mgmt & Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]}},p:{ESE211:{name:"Industrial Electronics",ch:3,cat:"program",pre:["ENG205"]},RME301:{name:"Intro to Mechatronics & Robotics",ch:3,cat:"program",pre:["ENG205","ENG209"]},RME302:{name:"Mechatronics Lab",ch:1,cat:"program",pre:[],coreq:"RME301"},RME304:{name:"Sensors & Actuators",ch:3,cat:"program",pre:["ESE211"]},RME352:{name:"Digital Systems & MCU",ch:3,cat:"program",pre:["ENG206","ENG207"]},RME353:{name:"Digital Systems Lab",ch:1,cat:"program",pre:[],coreq:"RME352"},RME360:{name:"Control Systems",ch:3,cat:"program",pre:["MAT201","MAT240"]},RME361:{name:"Control Systems Lab",ch:1,cat:"program",pre:[],coreq:"RME360"},MSE211:{name:"Materials Science",ch:3,cat:"program",pre:["ENG209"]},RME363:{name:"Mechanisms for Automation",ch:3,cat:"program",pre:["ENG209"]},RME401:{name:"Robotics Dynamics & Controls",ch:3,cat:"program",pre:["RME301"]},RME402:{name:"Robotics Lab",ch:1,cat:"program",pre:[],coreq:"RME401"},RME403:{name:"Computer-Integrated Mfg",ch:3,cat:"program",pre:["RME301"]},RME430:{name:"Digital Signal Processing",ch:3,cat:"program",pre:["ENG304","RME352"]},RME431:{name:"DSP Lab",ch:1,cat:"program",pre:[],coreq:"RME430"},RME460:{name:"Machine Element Design",ch:3,cat:"program",pre:["RME304"]},RME490:{name:"Capstone 1",ch:3,cat:"program",pre:["96CH"]},RME491:{name:"Capstone 2",ch:3,cat:"program",pre:["RME490"]}},e:{RME484:{name:"Autonomous Mobile Robots",ch:3,cat:"elective",pre:["RME360","RME401"]},RME481:{name:"Machine Vision",ch:3,cat:"elective",pre:["RME430"]},RME482:{name:"Manipulator Design",ch:3,cat:"elective",pre:["MSE211","RME352"]},RME483:{name:"Robotics Project Mgmt",ch:3,cat:"elective",pre:["RME301","ENG309"]},RME480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},RME485:{name:"Advanced PLC",ch:3,cat:"elective",pre:["RME352"]},ESE312:{name:"Electrical Machines",ch:3,cat:"elective",pre:["ESE211"]},RME487:{name:"ML for Mechatronics",ch:3,cat:"elective",pre:["RME360"]},RME495:{name:"Special Topics Mechatronics",ch:3,cat:"elective",pre:["APPROVAL"]},RME496:{name:"Special Topics Robotics",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+ESE:{name:"Energy Systems Engineering",abbr:"ESE",ch:132,color:"#eab308",cp:["MAT102","MAT240","ESE301","ESE302"],cpd:"MAT102 → MAT240 (Diff Eq) → ESE301 (Thermo) → ESE302",er:"Pick 3 (9 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Diff Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Energy & Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics & Strength",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Project Mgmt & Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]}},p:{ESE211:{name:"Industrial Electronics",ch:3,cat:"program",pre:["ENG205"]},ESE301:{name:"Thermodynamics",ch:3,cat:"program",pre:["MAT240","PHY102"]},ESE302:{name:"Thermo-fluid Systems",ch:3,cat:"program",pre:["ESE301","ENG308"]},ESE305:{name:"Thermal Lab",ch:1,cat:"program",pre:["ESE302"]},RME304x:{name:"Sensors & Actuators",ch:3,cat:"program",pre:["ESE211"]},RME352x:{name:"Digital Systems & MCU",ch:3,cat:"program",pre:["ENG206","ENG207"]},RME353x:{name:"Digital Systems Lab",ch:1,cat:"program",pre:[],coreq:"RME352x"},ESE312:{name:"Electrical Machines & Drives",ch:3,cat:"program",pre:["ESE211"]},ESE313:{name:"Machines Lab",ch:1,cat:"program",pre:["ESE312","ENG206"]},ESE314:{name:"Power Systems Analysis",ch:3,cat:"program",pre:["ENG308","ESE312"]},ESE315:{name:"Power Systems Lab",ch:1,cat:"program",pre:["ESE314","ESE313"]},ESE321:{name:"Renewable Energy Conversion",ch:3,cat:"program",pre:["ENG208","ESE301","ESE312"]},RME360x:{name:"Control Systems",ch:3,cat:"program",pre:["MAT201","MAT240"]},ESE401:{name:"Power Plants",ch:3,cat:"program",pre:["ESE302"]},ESE402:{name:"Energy Efficient Buildings",ch:3,cat:"program",pre:["ESE302","ENG209"]},ESE425:{name:"Renewable Energy Lab",ch:1,cat:"program",pre:["ESE321","ESE401"],coreq:"ESE315"},ESE490:{name:"Capstone 1",ch:3,cat:"program",pre:["96CH"]},ESE491:{name:"Capstone 2",ch:3,cat:"program",pre:["ESE490"]}},e:{ESE440:{name:"Solar Thermal",ch:3,cat:"elective",pre:["ESE302","ESE321"]},ESE441:{name:"Energy Storage",ch:3,cat:"elective",pre:["ESE302","ESE314"]},ESE442:{name:"Refrigeration",ch:3,cat:"elective",pre:["ESE302","ESE321"]},ESE443:{name:"Petroleum Eng",ch:3,cat:"elective",pre:["ESE302","ESE321"]},ESE450:{name:"Power Electronics",ch:3,cat:"elective",pre:["ESE312"]},ESE451:{name:"Power Protection",ch:3,cat:"elective",pre:["ESE314"]},ESE453:{name:"Smart Grids",ch:3,cat:"elective",pre:["ESE314","ESE321"]},ESE462:{name:"Fuel Cell & Hydrogen",ch:3,cat:"elective",pre:["ESE321"]},ESE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},ESE495:{name:"Special Topics",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+BAE:{name:"Bioresources & Agricultural Eng",abbr:"BAE",ch:132,color:"#84cc16",cp:["BIO101","BAE101","BAE360"],cpd:"BIO101 → BAE101 → BAE360",er:"Pick 3 (9 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Diff Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Energy & Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics & Strength",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Project Mgmt & Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]}},p:{BIO101:{name:"Biology",ch:3,cat:"program",pre:[]},BAE101:{name:"Intro Bioresources Eng",ch:3,cat:"program",pre:["BIO101"],coreq:"BAE102"},BAE102:{name:"Bioresources Lab",ch:1,cat:"program",pre:[],coreq:"BAE101"},ESE211x:{name:"Industrial Electronics",ch:3,cat:"program",pre:["ENG205"]},BAE230:{name:"Mechanical Sys Agri I",ch:3,cat:"program",pre:["ENG209"],coreq:"BAE231"},BAE231:{name:"Mech Sys I Lab",ch:1,cat:"program",pre:[],coreq:"BAE230"},BAE310:{name:"Remote Sensing",ch:3,cat:"program",pre:["MAT201"]},BAE320:{name:"Agri Structures",ch:3,cat:"program",pre:["PHY102","CHM101"]},BAE330:{name:"Mechanical Sys Agri II",ch:3,cat:"program",pre:["BAE230"],coreq:"BAE331"},BAE331:{name:"Mech Sys II Lab",ch:1,cat:"program",pre:[],coreq:"BAE330"},BAE340:{name:"Microbiology & Food Safety",ch:3,cat:"program",pre:["CHM101","BIO101"],coreq:"BAE341"},BAE341:{name:"Microbiology Lab",ch:1,cat:"program",pre:[],coreq:"BAE340"},BAE360:{name:"Bioresource Engineering",ch:3,cat:"program",pre:["BAE101","ENG208"]},BAE430:{name:"Mechanical Sys Agri III",ch:3,cat:"program",pre:["BAE330"]},BAE450:{name:"Agri Robotics",ch:3,cat:"program",pre:["ENG205"],coreq:"BAE451"},BAE451:{name:"Agri Robotics Lab",ch:1,cat:"program",pre:[],coreq:"BAE450"},BAE490:{name:"Capstone 1",ch:3,cat:"program",pre:["96CH"]},BAE491:{name:"Capstone 2",ch:3,cat:"program",pre:["BAE490"]}},e:{BAE401:{name:"Lean Six Sigma",ch:3,cat:"elective",pre:["BAE101"]},BAE402:{name:"Controlled Env Systems",ch:3,cat:"elective",pre:["BAE360"]},BAE461:{name:"Aquaponics",ch:3,cat:"elective",pre:["BAE360"]},BAE463:{name:"Biosystems Analysis",ch:3,cat:"elective",pre:["BAE360"]},BAE471:{name:"Food Plant Sanitation",ch:3,cat:"elective",pre:["BAE340"]},BAE475:{name:"Geomatics",ch:3,cat:"elective",pre:["BAE310"]},BAE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},BAE495:{name:"Special Topics Bioresources",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+EES:{name:"Environmental & Sustainability Eng",abbr:"EES",ch:132,color:"#34d399",cp:["CHM101","CHM105","EES301","EES306"],cpd:"CHM101 → CHM105 → EES301 (Env Chem) → EES306",er:"Pick 3 (9 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Diff Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Energy & Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics & Strength",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Project Mgmt & Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]}},p:{BIO101:{name:"Biology I",ch:3,cat:"program",pre:[]},ESE301x:{name:"Thermodynamics",ch:3,cat:"program",pre:["MAT240","PHY102"]},ESE302x:{name:"Thermo-fluid Systems",ch:3,cat:"program",pre:["ESE301x","ENG308"]},ESE305x:{name:"Thermal Lab",ch:1,cat:"program",pre:["ESE302x"]},EES301:{name:"Environmental Chemistry",ch:3,cat:"program",pre:["CHM101","CHM105"]},EES302:{name:"Env Management Systems",ch:3,cat:"program",pre:["ENG208"]},EES303:{name:"Sustainability Fundamentals",ch:3,cat:"program",pre:["ENG208","BIO101"]},EES304:{name:"Water Supply & Sewerage",ch:3,cat:"program",pre:["ESE302x"]},EES305:{name:"Water Supply Lab",ch:1,cat:"program",pre:[],coreq:"EES304"},EES306:{name:"Air & Water Pollution Control",ch:3,cat:"program",pre:["BIO101","EES301"]},EES307:{name:"Solid & Hazardous Waste",ch:3,cat:"program",pre:["ENG209","EES301"]},EES308:{name:"Waste Mgmt & Conversion",ch:3,cat:"program",pre:["ENG208","EES301"]},EES401:{name:"Environmental Impact Assessment",ch:3,cat:"program",pre:["ESE302x","ENG304"]},EES402:{name:"Sustainable Buildings",ch:3,cat:"program",pre:["ENG208","EES303"]},EES490:{name:"Capstone 1",ch:3,cat:"program",pre:["96CH"]},EES491:{name:"Capstone 2",ch:3,cat:"program",pre:["EES490"]}},e:{EES451:{name:"Carbon Footprint",ch:3,cat:"elective",pre:["EES302","EES303"]},EES453:{name:"Climate Change",ch:3,cat:"elective",pre:["EES302","EES303","EES401"]},EES455:{name:"Risk Assessment",ch:3,cat:"elective",pre:["ENG309"]},EES461:{name:"Kuwait Env Issues",ch:3,cat:"elective",pre:["EES302","EES303"]},EES480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},EES495:{name:"Special Topics Env",ch:3,cat:"elective",pre:["APPROVAL"]},EES496:{name:"Special Topics Sustainability",ch:3,cat:"elective",pre:["APPROVAL"]}}},
+
+MSE:{name:"Material Science & Engineering",abbr:"MSE",ch:132,color:"#a78bfa",cp:["PHY102","ENG209","MSE211","MSE302"],cpd:"PHY102 → ENG209 → MSE211 → MSE302",er:"Pick 3 (9 CH)",gm:{MAT101:{name:"Calculus I",ch:3,cat:"gen",pre:[]},PHY101:{name:"Physics I",ch:3,cat:"gen",pre:[],coreq:"MAT101"}},c:{PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Diff Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Energy & Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics & Strength",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Project Mgmt & Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]}},p:{MSE211:{name:"Intro to Materials Science",ch:3,cat:"program",pre:["ENG209"]},MSE301:{name:"Thermo of Materials",ch:3,cat:"program",pre:["CHM101"]},MSE302:{name:"Materials Characterization",ch:3,cat:"program",pre:["MSE211"]},MSE303:{name:"Structure & Bonding",ch:3,cat:"program",pre:["MSE211"]},MSE304:{name:"Physical Chemistry",ch:3,cat:"program",pre:["MSE302"]},MSE305:{name:"Electronic Properties",ch:3,cat:"program",pre:["MSE211"]},MSE306:{name:"Mechanical & Thermal Props",ch:3,cat:"program",pre:["MSE211"]},MSE307:{name:"Nanomaterials",ch:3,cat:"program",pre:["MSE303"]},MSE308:{name:"Characterization Lab 1",ch:1,cat:"program",pre:[],coreq:"MSE302"},MSE309:{name:"Synthesis Lab",ch:1,cat:"program",pre:["MSE303","MSE304"]},MSE310:{name:"Device Fabrication Lab",ch:1,cat:"program",pre:["ENG206"],coreq:"MSE305"},MSE311:{name:"Property Measurement Lab",ch:1,cat:"program",pre:["MSE305","MSE306"]},MSE400:{name:"Diffusion & Kinetics",ch:3,cat:"program",pre:["MSE301","MSE303"]},MSE401:{name:"Phase Diagrams",ch:3,cat:"program",pre:["MAT201","MSE306","MSE308"]},MSE402:{name:"Materials for Renewable Energy",ch:3,cat:"program",pre:["MSE305","MSE306","ENG208"]},MSE403:{name:"Characterization Lab 2",ch:1,cat:"program",pre:["MSE302","MSE308"]},MSE490:{name:"Capstone 1",ch:3,cat:"program",pre:["96CH"]},MSE491:{name:"Capstone 2",ch:3,cat:"program",pre:["MSE490"]}},e:{MSE382:{name:"Organic Chemistry",ch:3,cat:"elective",pre:["CHM101"]},MSE484:{name:"Synthesis Techniques",ch:3,cat:"elective",pre:["MSE303"]},MSE485:{name:"Modeling & Simulation",ch:3,cat:"elective",pre:["MSE302"]},MSE486:{name:"Polymer Science",ch:3,cat:"elective",pre:["MSE302"]},MSE487:{name:"Composite Materials",ch:3,cat:"elective",pre:["MSE302"]},MSE488:{name:"Harsh Environments",ch:3,cat:"elective",pre:["MSE302"]},MSE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},MSE495:{name:"Special Topics",ch:3,cat:"elective",pre:["APPROVAL"]}}},
 };
 
-// Math & Science for Business majors
-const MATH_SCI_BUS = {
-  MAT100:{name:"Business Math",ch:3,cat:"gen",pre:[]},
-  MAT210:{name:"Intro. to Probability & Statistics",ch:3,cat:"gen",pre:["MAT100"]},
-};
+function build(k){const m=M[k];if(!m)return {};return{...GEN_ED,...m.gm,...m.c,...m.p,...m.e}}
+const CC={gen:{b:"#64748b",t:"#94a3b8"},"gen-elec":{b:"#475569",t:"#64748b"},college:{b:"#22c55e",t:"#86efac"},"college-cs":{b:"#a855f7",t:"#d8b4fe"},program:{b:"#ef4444",t:"#fca5a5"},elective:{b:"#f59e0b",t:"#fcd34d"}};
+const CL=(a)=>({gen:"General Education","gen-elec":"Gen Ed Electives",college:"College Requirements","college-cs":"College (Computing)",program:`${a} Core`,elective:`${a} Electives`});
 
-// ---- SHARED COLLEGE COURSES (Computing) ----
-const COMPUTING_SHARED = {
-  CCS120:{name:"Computational Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},
-  CCS121:{name:"Computational Thinking & Programming Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},
-  CCS220:{name:"Object-Oriented Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},
-  CCS221:{name:"Object-Oriented Design & Programming Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},
-  CCS230:{name:"Fundamentals of Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},
-  CCS231:{name:"Fundamentals of Database Systems Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},
-  CCS270:{name:"Data Structures and Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},
-  CCS271:{name:"Data Structures and Algorithms Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},
-  CCS200:{name:"Digital Logic and Design",ch:3,cat:"college-cs",pre:["PHY101"]},
-  CCS241:{name:"Fundamentals of Computer Networks",ch:3,cat:"college-cs",pre:["CCS200"]},
-  CCS320:{name:"Fundamentals of Operating Systems",ch:3,cat:"college-cs",pre:["CCS270"]},
-  CCS330:{name:"Web Engineering",ch:3,cat:"college-cs",pre:["CCS230"]},
-  CCS331:{name:"Web Engineering Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS330"},
-  CCS342:{name:"IT Infrastructure",ch:3,cat:"college-cs",pre:["INF120"]},
-};
-
-// ---- SHARED MATH/SCIENCE COURSES ----
-const MATH_SCI_SHARED = {
-  PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},
-  MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},
-  MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},
-  MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},
-  MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},
-  MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},
-  MAT221:{name:"Number Theory",ch:3,cat:"college",pre:["MAT102"]},
-  ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},
-  ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},
-  PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},
-  PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},
-  CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},
-  CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},
-  BIO101:{name:"Biology I",ch:3,cat:"college",pre:[]},
-  BIO105:{name:"Biology I Lab",ch:1,cat:"college",pre:[],coreq:"BIO101"},
-};
-
-// ---- ENGINEERING SHARED ----
-const ENG_SHARED = {
-  ENG205:{name:"Electrical and Electronic Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},
-  ENG206:{name:"Electrical and Electronic Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},
-  ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},
-  ENG208:{name:"Introduction to Energy and Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},
-  ENG209:{name:"Statics and Strength of Materials",ch:3,cat:"college",pre:["PHY102","CHM101"]},
-  ENG204:{name:"Engineering Mechanics",ch:3,cat:"college",pre:["PHY102"]},
-  ENG309:{name:"Engineering Project Management and Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]},
-};
-
-// ============================================================
-// MAJOR DEFINITIONS
-// ============================================================
-
-const MAJORS = {
-  SWE: {
-    name: "Software Engineering",
-    abbr: "SWE",
-    totalCH: 132,
-    color: "#ef4444",
-    criticalPath: ["MAT120","CCS120","CCS220","CCS230","SWE301"],
-    genMathSci: "eng",
-    courses: {
-      ...MATH_SCI_ENG,...GEN_ED_COURSES,
-      // College Math/Sci (26 CH)
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},
-      MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},
-      MAT221:{name:"Number Theory",ch:3,cat:"college",pre:["MAT102"]},
-      MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},
-      BIO101:{name:"Biology I or Chemistry I",ch:3,cat:"college",pre:[]},
-      BIO105:{name:"Biology I Lab or Chemistry I Lab",ch:1,cat:"college",pre:[]},
-      MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},
-      MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},
-      ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},
-      ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},
-      // College Computing (29 CH)
-      CCS120:{name:"Computational Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},
-      CCS121:{name:"Computational Thinking & Programming Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},
-      CCS200:{name:"Digital Logic and Design",ch:3,cat:"college-cs",pre:["PHY101"]},
-      CCS220:{name:"Object-Oriented Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},
-      CCS221:{name:"OOP Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},
-      CCS230:{name:"Fundamentals of Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},
-      CCS231:{name:"Database Systems Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},
-      CCS241:{name:"Fundamentals of Computer Networks",ch:3,cat:"college-cs",pre:["CCS200"]},
-      CCS270:{name:"Data Structures and Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},
-      CCS271:{name:"DS & Algorithms Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},
-      CCS320:{name:"Fundamentals of Operating Systems",ch:3,cat:"college-cs",pre:["CCS270"]},
-      CCS330:{name:"Web Engineering",ch:3,cat:"college-cs",pre:["CCS230"]},
-      CCS331:{name:"Web Engineering Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS330"},
-      // Program Requirements (35 CH compulsory)
-      SWE301:{name:"Software Process and Methodologies",ch:3,cat:"program",pre:["CCS230"]},
-      SWE305:{name:"Software Requirements Engineering",ch:3,cat:"program",pre:["CCS230"]},
-      SWE306:{name:"Software Requirements Engineering Lab",ch:1,cat:"program",pre:[],coreq:"SWE305"},
-      SWE310:{name:"Human-Computer Interaction",ch:3,cat:"program",pre:["SWE301"]},
-      SWE311:{name:"Human-Computer Interaction Lab",ch:1,cat:"program",pre:[],coreq:"SWE310"},
-      SWE340:{name:"Software Design and Architecture",ch:3,cat:"program",pre:["SWE305"]},
-      SWE341:{name:"Software Design and Architecture Lab",ch:1,cat:"program",pre:[],coreq:"SWE340"},
-      SWE345:{name:"Software Modelling and Analysis",ch:3,cat:"program",pre:["SWE301"]},
-      SWE420:{name:"Software Construction and Evolution",ch:3,cat:"program",pre:["SWE340"]},
-      SWE421:{name:"Software Construction and Evolution Lab",ch:1,cat:"program",pre:[],coreq:"SWE420"},
-      SWE430:{name:"Software Testing and Quality Assurance",ch:3,cat:"program",pre:["SWE340"]},
-      SWE431:{name:"Software Testing and Quality Assurance Lab",ch:1,cat:"program",pre:[],coreq:"SWE430"},
-      SWE440:{name:"Software Security and Analysis",ch:3,cat:"program",pre:["SWE430"]},
-      SWE490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},
-      SWE491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["SWE490"]},
-      // Electives (pick 2 = 6 CH)
-      SWE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},
-      SWE441:{name:"Software Reliability and Software Quality",ch:3,cat:"elective",pre:["SWE340"]},
-      SWE442:{name:"Software Engineering Ethics",ch:3,cat:"elective",pre:["SWE305"]},
-      SWE443:{name:"Software Project Management",ch:3,cat:"elective",pre:["SWE340","SWE345"]},
-      SWE444:{name:"Modern Software Methodologies",ch:3,cat:"elective",pre:["SWE345"]},
-      SWE445:{name:"Software Development and Maintenance",ch:3,cat:"elective",pre:["SWE340"]},
-      SWE447:{name:"Cloud Computing",ch:3,cat:"elective",pre:["CCS330"]},
-      SWE495:{name:"Special Topics in Software Engineering",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-
-  DAI: {
-    name: "Data Science and Artificial Intelligence",
-    abbr: "DAI",
-    totalCH: 120,
-    color: "#8b5cf6",
-    criticalPath: ["MAT120","CCS120","CCS220","CCS230","DAI330"],
-    genMathSci: "eng",
-    courses: {
-      ...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},
-      MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},
-      MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},
-      BIO101:{name:"Biology I or Chemistry I",ch:3,cat:"college",pre:[]},
-      BIO105:{name:"Biology I Lab or Chemistry I Lab",ch:1,cat:"college",pre:[]},
-      MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},
-      ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},
-      CCS120:{name:"Computational Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},
-      CCS121:{name:"Computational Thinking & Programming Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},
-      CCS220:{name:"Object-Oriented Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},
-      CCS221:{name:"OOP Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},
-      CCS230:{name:"Fundamentals of Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},
-      CCS231:{name:"Database Systems Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},
-      CCS270:{name:"Data Structures and Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},
-      CCS271:{name:"DS & Algorithms Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},
-      CCS342:{name:"IT Infrastructure",ch:3,cat:"college-cs",pre:["INF120"]},
-      CCS330:{name:"Web Engineering",ch:3,cat:"college-cs",pre:["CCS230"]},
-      CCS331:{name:"Web Engineering Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS330"},
-      // Program (38 CH compulsory)
-      DAI230:{name:"Mathematics for Data Science & AI",ch:3,cat:"program",pre:["MAT120"]},
-      DAI250:{name:"Fundamentals of Data Science & AI",ch:3,cat:"program",pre:["DAI230"]},
-      DAI251:{name:"Fundamentals of Data Science & AI Lab",ch:1,cat:"program",pre:[],coreq:"DAI250"},
-      DAI310:{name:"Machine Learning",ch:3,cat:"program",pre:["DAI250"]},
-      DAI311:{name:"Machine Learning Lab",ch:1,cat:"program",pre:[],coreq:"DAI310"},
-      DAI330:{name:"Data Warehousing and Data Mining",ch:3,cat:"program",pre:["CCS230"]},
-      DAI331:{name:"Data Warehousing and Data Mining Lab",ch:1,cat:"program",pre:[],coreq:"DAI330"},
-      DAI351:{name:"Advanced Machine Learning",ch:3,cat:"program",pre:["DAI310"]},
-      DAI352:{name:"Advanced Machine Learning Lab",ch:1,cat:"program",pre:[],coreq:"DAI351"},
-      DAI374:{name:"Data Ethics, Governance, and Laws",ch:3,cat:"program",pre:["DAI351"]},
-      DAI421:{name:"Data Analytics and Visualization",ch:3,cat:"program",pre:["DAI250"]},
-      DAI430:{name:"Big Data Systems",ch:3,cat:"program",pre:["DAI330"]},
-      DAI431:{name:"Big Data Systems Lab",ch:1,cat:"program",pre:[],coreq:"DAI430"},
-      DAI440:{name:"Distributed Computing",ch:3,cat:"program",pre:["CCS342"]},
-      DAI490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["87CH"]},
-      DAI491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["DAI490"]},
-      // Electives (pick 2 = 6 CH)
-      DAI480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},
-      DAI432:{name:"Security Aspects of Data Science & AI",ch:3,cat:"elective",pre:["DAI330","DAI351"]},
-      DAI462:{name:"Computer Vision and Pattern Recognition",ch:3,cat:"elective",pre:["DAI351"]},
-      DAI463:{name:"Natural Language Processing",ch:3,cat:"elective",pre:["DAI351"]},
-      DAI475:{name:"Business Intelligence and Decision Support",ch:3,cat:"elective",pre:["DAI351"]},
-      DAI476:{name:"Data Analytics for Risk Management",ch:3,cat:"elective",pre:["DAI330"]},
-      DAI495:{name:"Special Topics in Data Science",ch:3,cat:"elective",pre:["APPROVAL"]},
-      DAI496:{name:"Special Topics in AI",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-
-  CSE: {
-    name: "Cybersecurity Engineering",
-    abbr: "CSE",
-    totalCH: 132,
-    color: "#06b6d4",
-    criticalPath: ["MAT120","CCS120","CCS220","CCS230"],
-    genMathSci: "eng",
-    courses: {
-      ...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},
-      MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},
-      MAT221:{name:"Number Theory",ch:3,cat:"college",pre:["MAT102"]},
-      MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},
-      BIO101:{name:"Biology I or Chemistry I",ch:3,cat:"college",pre:[]},
-      BIO105:{name:"Biology I Lab or Chemistry I Lab",ch:1,cat:"college",pre:[]},
-      MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},
-      MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},
-      ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},
-      ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},
-      CCS120:{name:"Computational Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},
-      CCS121:{name:"Computational Thinking & Programming Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},
-      CCS200:{name:"Digital Logic and Design",ch:3,cat:"college-cs",pre:["PHY101"]},
-      CCS220:{name:"Object-Oriented Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},
-      CCS221:{name:"OOP Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},
-      CCS230:{name:"Fundamentals of Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},
-      CCS231:{name:"Database Systems Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},
-      CCS241:{name:"Fundamentals of Computer Networks",ch:3,cat:"college-cs",pre:["CCS200"]},
-      CCS270:{name:"Data Structures and Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},
-      CCS271:{name:"DS & Algorithms Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},
-      CCS320:{name:"Fundamentals of Operating Systems",ch:3,cat:"college-cs",pre:["CCS270"]},
-      CCS330:{name:"Web Engineering",ch:3,cat:"college-cs",pre:["CCS230"]},
-      CCS331:{name:"Web Engineering Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS330"},
-      // Program (35 CH)
-      CSE210:{name:"Fundamentals of Cyber Security Engineering",ch:3,cat:"program",pre:["MAT202"]},
-      CSE310:{name:"Cryptography and Data Security",ch:3,cat:"program",pre:["CSE210"]},
-      CSE311:{name:"Cryptography and Data Security Lab",ch:1,cat:"program",pre:[],coreq:"CSE310"},
-      CSE325:{name:"Cybersecurity Risk Management",ch:3,cat:"program",pre:["CSE210"]},
-      CSE326:{name:"Cybersecurity Risk Management Lab",ch:1,cat:"program",pre:[],coreq:"CSE325"},
-      CSE341:{name:"Network Security",ch:3,cat:"program",pre:["CCS241"]},
-      CSE360:{name:"Ethical Hacking and Cyber Laws",ch:3,cat:"program",pre:["GEN150","CSE210"]},
-      CSE410:{name:"Digital Forensics",ch:3,cat:"program",pre:["CSE310"]},
-      CSE411:{name:"Digital Forensics Lab",ch:1,cat:"program",pre:[],coreq:"CSE410"},
-      CSE420:{name:"Software Security",ch:3,cat:"program",pre:["CCS320"]},
-      CSE421:{name:"Software Security Lab",ch:1,cat:"program",pre:[],coreq:"CSE420"},
-      CSE430:{name:"Web Security",ch:3,cat:"program",pre:["CSE210","CCS330"]},
-      CSE431:{name:"Web Security Lab",ch:1,cat:"program",pre:[],coreq:"CSE430"},
-      CSE490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},
-      CSE491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["CSE490"]},
-      // Electives (pick 2 = 6 CH)
-      CSE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},
-      CSE441:{name:"Distributed Network Security",ch:3,cat:"elective",pre:["CSE341"]},
-      CSE442:{name:"IT Infrastructure Protection",ch:3,cat:"elective",pre:["CSE325"]},
-      CSE443:{name:"Cyber Security Governance and Compliance",ch:3,cat:"elective",pre:["CSE360"]},
-      CSE445:{name:"Operating System Security",ch:3,cat:"elective",pre:["CCS320"]},
-      CSE446:{name:"AI for Cybersecurity",ch:3,cat:"elective",pre:["CSE310"]},
-      CSE495:{name:"Special Topics in Cybersecurity",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-
-  CME: {
-    name: "Computer Systems Engineering",
-    abbr: "CME",
-    totalCH: 132,
-    color: "#10b981",
-    criticalPath: ["MAT120","CCS120","CCS220","CCS200","CME310"],
-    genMathSci: "eng",
-    courses: {
-      ...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},
-      PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},
-      PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},
-      MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},
-      MAT221:{name:"Number Theory",ch:3,cat:"college",pre:["MAT102"]},
-      MAT120:{name:"Discrete Mathematics",ch:3,cat:"college",pre:[]},
-      BIO101:{name:"Biology I or Chemistry I",ch:3,cat:"college",pre:[]},
-      BIO105:{name:"Biology I Lab or Chemistry I Lab",ch:1,cat:"college",pre:[]},
-      MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},
-      MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},
-      ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},
-      ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},
-      CCS120:{name:"Computational Thinking & Programming",ch:3,cat:"college-cs",pre:["MAT120"]},
-      CCS121:{name:"Computational Thinking & Programming Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS120"},
-      CCS200:{name:"Digital Logic and Design",ch:3,cat:"college-cs",pre:["PHY101"]},
-      CCS220:{name:"Object-Oriented Design & Programming",ch:3,cat:"college-cs",pre:["CCS120"]},
-      CCS221:{name:"OOP Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS220"},
-      CCS230:{name:"Fundamentals of Database Systems",ch:3,cat:"college-cs",pre:["CCS220","MAT120"]},
-      CCS231:{name:"Database Systems Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS230"},
-      CCS241:{name:"Fundamentals of Computer Networks",ch:3,cat:"college-cs",pre:["CCS200"]},
-      CCS270:{name:"Data Structures and Algorithms",ch:3,cat:"college-cs",pre:["CCS220"]},
-      CCS271:{name:"DS & Algorithms Lab",ch:1,cat:"college-cs",pre:[],coreq:"CCS270"},
-      CCS320:{name:"Fundamentals of Operating Systems",ch:3,cat:"college-cs",pre:["CCS270"]},
-      // Program (35 CH)
-      ENG205:{name:"Electrical and Electronic Circuits",ch:3,cat:"program",pre:["PHY102","MAT102"]},
-      ENG206:{name:"Electrical and Electronic Circuits Lab",ch:1,cat:"program",pre:["ENG205","PHY107"]},
-      CME220:{name:"Introduction to Computer Systems Engineering",ch:3,cat:"program",pre:["CCS200"]},
-      CME310:{name:"Computer Architecture and Organization",ch:3,cat:"program",pre:["CCS200"]},
-      CME311:{name:"Computer Architecture and Organization Lab",ch:1,cat:"program",pre:[],coreq:"CME310"},
-      CME341:{name:"Systems and Signal Processing",ch:3,cat:"program",pre:["ENG205"]},
-      CME360:{name:"Network and System Security",ch:3,cat:"program",pre:["CCS241"]},
-      CME410:{name:"Programming for Computer Engineering",ch:3,cat:"program",pre:["CCS220"]},
-      CME411:{name:"Programming for Computer Engineering Lab",ch:1,cat:"program",pre:[],coreq:"CME410"},
-      CME420:{name:"Embedded and Microprocessor Systems",ch:3,cat:"program",pre:["CME310"]},
-      CME421:{name:"Embedded and Microprocessor Systems Lab",ch:1,cat:"program",pre:[],coreq:"CME420"},
-      CME430:{name:"Digital Systems Design",ch:3,cat:"program",pre:["CME310"]},
-      CME431:{name:"Digital Systems Design Lab",ch:1,cat:"program",pre:[],coreq:"CME430"},
-      CME490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},
-      CME491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["CME490"]},
-      // Electives (pick 2 = 6 CH)
-      CME480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},
-      CCS330:{name:"Web Engineering",ch:3,cat:"elective",pre:["CCS230"]},
-      CME435:{name:"Formal Language and Automata",ch:3,cat:"elective",pre:["CCS270"]},
-      CME440:{name:"Real-time Systems",ch:3,cat:"elective",pre:["CME310"]},
-      CME441:{name:"VHDL Programming",ch:3,cat:"elective",pre:["CME410"]},
-      CME442:{name:"Parallel and Distributed Computing",ch:3,cat:"elective",pre:["CME341"]},
-      CME443:{name:"Simulation Modeling and Analysis",ch:3,cat:"elective",pre:["CME310"]},
-      CME444:{name:"Principles Artificial Intelligence",ch:3,cat:"elective",pre:["CME310"]},
-      CME445:{name:"Principles Blockchain Technology",ch:3,cat:"elective",pre:["CME310"]},
-      CME446:{name:"Principles Quantum Computing",ch:3,cat:"elective",pre:["CME310"]},
-      CME495:{name:"Special Topic in Computer Systems",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-
-  DMK: {
-    name: "Digital Marketing",
-    abbr: "DMK",
-    totalCH: 120,
-    color: "#f59e0b",
-    criticalPath: ["BUS100","MRK103","DMK210"],
-    genMathSci: "bus",
-    courses: {
-      ...MATH_SCI_BUS,...GEN_ED_COURSES,
-      // College (33 CH)
-      BUS100:{name:"Introduction to Business Administration",ch:3,cat:"college",pre:[]},
-      ACC101:{name:"Principles of Accounting",ch:3,cat:"college",pre:["MAT100"]},
-      FIN102:{name:"Principle of Finance",ch:3,cat:"college",pre:["MAT100"]},
-      MRK103:{name:"Principle of Marketing",ch:3,cat:"college",pre:["BUS100"]},
-      BUS200:{name:"Business Statistics",ch:3,cat:"college",pre:["MAT210"]},
-      BUS220:{name:"Business Economics",ch:3,cat:"college",pre:["MAT210"]},
-      MIS300:{name:"Management Information Systems",ch:3,cat:"college",pre:["INF120"]},
-      MGT310:{name:"Organization Behaviour",ch:3,cat:"college",pre:["BUS100"]},
-      MGT340:{name:"Operations Management",ch:3,cat:"college",pre:["MAT100","BUS100"]},
-      BUS345:{name:"Business Law and Ethics",ch:3,cat:"college",pre:["BUS100"]},
-      MGT101:{name:"Principles of Management",ch:3,cat:"college",pre:["BUS100"]},
-      // Program (42 CH)
-      DMK210:{name:"Digital Marketing Fundamentals",ch:3,cat:"program",pre:["MRK103"]},
-      DMK220:{name:"International Marketing Management",ch:3,cat:"program",pre:["MRK103"]},
-      DMK225:{name:"Market Planning and Research",ch:3,cat:"program",pre:["MRK103"]},
-      DMK230:{name:"Content Marketing",ch:3,cat:"program",pre:["DMK210"]},
-      DMK310:{name:"Social Media Marketing",ch:3,cat:"program",pre:["DMK210"]},
-      DMK315:{name:"E-commerce Marketing",ch:3,cat:"program",pre:["DMK210"]},
-      DMK325:{name:"Digital Marketing Strategy",ch:3,cat:"program",pre:["DMK210","DMK225"]},
-      DMK330:{name:"Customer Relations and Consumer Behavior",ch:3,cat:"program",pre:["MRK103"]},
-      DMK400:{name:"Internship in Marketing",ch:3,cat:"program",pre:["DMK230","DMK310"]},
-      DMK420:{name:"Mobile Applications Marketing",ch:3,cat:"program",pre:["DMK210","DMK315"]},
-      DMK440:{name:"Social Media and Web Analytics",ch:3,cat:"program",pre:["MIS300","DMK310","DMK315"]},
-      DMK460:{name:"Digital Advertising Campaign Management",ch:3,cat:"program",pre:["DMK310","DMK325"]},
-      DMK475:{name:"Legal and Ethical Issues in Digital Marketing",ch:3,cat:"program",pre:["GEN150","DMK310","DMK315"]},
-      DMK490:{name:"Capstone Design",ch:3,cat:"program",pre:["87CH"]},
-      // Electives (pick 3 = 9 CH)
-      DMK340:{name:"Influencer Marketing",ch:3,cat:"elective",pre:["DMK230"]},
-      DMK320:{name:"Emerging Trends in Digital Marketing",ch:3,cat:"elective",pre:["DMK210","DMK325"]},
-      DMK435:{name:"Designing Brand Identity",ch:3,cat:"elective",pre:["DMK210"]},
-      DMK445:{name:"Advanced Social Media Advertising",ch:3,cat:"elective",pre:["DMK310"]},
-      DMK450:{name:"Web Design and Development",ch:3,cat:"elective",pre:["MIS300","DMK440"]},
-      DMK465:{name:"Services Marketing Strategy",ch:3,cat:"elective",pre:["MRK103"]},
-      DMK470:{name:"Advanced Web Analytics Tools",ch:3,cat:"elective",pre:["DMK440"]},
-      DMK480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},
-      DMK495:{name:"Special Topics in Digital Marketing",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-
-  ENI: {
-    name: "Entrepreneurship and Innovation",
-    abbr: "ENI",
-    totalCH: 120,
-    color: "#ec4899",
-    criticalPath: ["BUS100","MRK103","ENI200","ENI220"],
-    genMathSci: "bus",
-    courses: {
-      ...MATH_SCI_BUS,...GEN_ED_COURSES,
-      BUS100:{name:"Introduction to Business Administration",ch:3,cat:"college",pre:[]},
-      ACC101:{name:"Principles of Accounting",ch:3,cat:"college",pre:["MAT100"]},
-      FIN102:{name:"Principle of Finance",ch:3,cat:"college",pre:["MAT100"]},
-      MRK103:{name:"Principle of Marketing",ch:3,cat:"college",pre:["BUS100"]},
-      BUS200:{name:"Business Statistics",ch:3,cat:"college",pre:["MAT210"]},
-      BUS220:{name:"Business Economics",ch:3,cat:"college",pre:["MAT210"]},
-      MIS300:{name:"Management Information Systems",ch:3,cat:"college",pre:["INF120"]},
-      MGT310:{name:"Organization Behaviour",ch:3,cat:"college",pre:["BUS100"]},
-      MGT340:{name:"Operations Management",ch:3,cat:"college",pre:["MAT100","BUS100"]},
-      BUS345:{name:"Business Law and Ethics",ch:3,cat:"college",pre:["BUS100"]},
-      MGT101:{name:"Principles of Management",ch:3,cat:"college",pre:["BUS100"]},
-      // Program (42 CH)
-      ENI200:{name:"Foundations of Management and Entrepreneurship 1",ch:3,cat:"program",pre:["BUS100","ACC101","MRK103"]},
-      ENI210:{name:"Foundations of Business Analytics",ch:3,cat:"program",pre:["BUS220"]},
-      ENI215:{name:"Entrepreneurship Leadership",ch:3,cat:"program",pre:["BUS100"]},
-      ENI220:{name:"Foundations of Management and Entrepreneurship 2",ch:3,cat:"program",pre:["ENI200"]},
-      ENI225:{name:"Socio-Ecological Systems",ch:3,cat:"program",pre:["BUS100"]},
-      ENI315:{name:"Strategic Problem Solving",ch:3,cat:"program",pre:["ENI220"]},
-      ENI320:{name:"Commercialization and Pitching",ch:3,cat:"program",pre:["ENI220"]},
-      ENI400:{name:"Internship in Entrepreneurship and Innovation",ch:3,cat:"program",pre:["MIS300","ENI220"]},
-      ENI405:{name:"Business Models and Plan",ch:3,cat:"program",pre:["ENI215","ENI220"]},
-      ENI410:{name:"Innovation and Sustainability",ch:3,cat:"program",pre:["ENI215","ENI225"]},
-      ENI415:{name:"Entrepreneurship and E-commerce",ch:3,cat:"program",pre:["MIS300","MGT310","ENI220"]},
-      ENI435:{name:"Entrepreneurial Marketing",ch:3,cat:"program",pre:["ENI320"]},
-      ENI455:{name:"Entrepreneurship and Managing Technology Innovation",ch:3,cat:"program",pre:["ENI410"]},
-      ENI490:{name:"Capstone Design",ch:3,cat:"program",pre:["87CH"]},
-      // Electives (pick 3 = 9 CH)
-      ENI425:{name:"Market Research and Consumer Behaviour",ch:3,cat:"elective",pre:["ENI435"]},
-      ENI440:{name:"Entrepreneurship Finance",ch:3,cat:"elective",pre:["FIN102"]},
-      ENI445:{name:"Managing a Growing Business",ch:3,cat:"elective",pre:["ENI210"]},
-      ENI446:{name:"Venture Capital Experience",ch:3,cat:"elective",pre:["FIN102","BUS220"]},
-      ENI450:{name:"Social Entrepreneurship",ch:3,cat:"elective",pre:["ENI225"]},
-      ENI460:{name:"Entrepreneurship Ethical and Legal Issues",ch:3,cat:"elective",pre:["GEN150"]},
-      ENI480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},
-      ENI495:{name:"Special Topics in Entrepreneurship",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-
-  SCL: {
-    name: "Supply Chain and Logistics Management",
-    abbr: "SCL",
-    totalCH: 120,
-    color: "#14b8a6",
-    criticalPath: ["BUS100","MGT101","SCL203","SCL320","SCL340"],
-    genMathSci: "bus",
-    courses: {
-      ...MATH_SCI_BUS,...GEN_ED_COURSES,
-      BUS100:{name:"Introduction to Business Administration",ch:3,cat:"college",pre:[]},
-      ACC101:{name:"Principles of Accounting",ch:3,cat:"college",pre:["MAT100"]},
-      FIN102:{name:"Principle of Finance",ch:3,cat:"college",pre:["MAT100"]},
-      MRK103:{name:"Principle of Marketing",ch:3,cat:"college",pre:["BUS100"]},
-      BUS200:{name:"Business Statistics",ch:3,cat:"college",pre:["MAT210"]},
-      BUS220:{name:"Business Economics",ch:3,cat:"college",pre:["MAT210"]},
-      MIS300:{name:"Management Information Systems",ch:3,cat:"college",pre:["INF120"]},
-      MGT310:{name:"Organization Behaviour",ch:3,cat:"college",pre:["BUS100"]},
-      MGT340:{name:"Operations Management",ch:3,cat:"college",pre:["MAT100","BUS100"]},
-      BUS345:{name:"Business Law and Ethics",ch:3,cat:"college",pre:["BUS100"]},
-      MGT101:{name:"Principles of Management",ch:3,cat:"college",pre:["BUS100"]},
-      // Program (42 CH)
-      SCL201:{name:"Principle of Procurement Management",ch:3,cat:"program",pre:["MGT101"]},
-      SCL202:{name:"Logistics Management",ch:3,cat:"program",pre:["BUS100"]},
-      SCL203:{name:"Principle of Supply Chain Management",ch:3,cat:"program",pre:["MGT101"]},
-      SCL310:{name:"Business Quantitative Methods",ch:3,cat:"program",pre:["BUS200"]},
-      SCL315:{name:"Management of Production and Operations",ch:3,cat:"program",pre:["SCL203"]},
-      SCL320:{name:"Global Supply Chain Operations",ch:3,cat:"program",pre:["SCL203"]},
-      SCL325:{name:"Enterprise Resource Planning",ch:3,cat:"program",pre:["SCL201","SCL202"]},
-      SCL340:{name:"Risk Management in Supply Chain",ch:3,cat:"program",pre:["SCL320"]},
-      SCL400:{name:"Internship (SCL)",ch:3,cat:"program",pre:["MGT340","SCL203"]},
-      SCL401:{name:"Business Process Integration",ch:3,cat:"program",pre:["MIS300","MGT340","SCL315"]},
-      SCL402:{name:"Business Process Configuration",ch:3,cat:"program",pre:["MIS300","MGT340","SCL315"]},
-      SCL410:{name:"Supply Chain Sustainability",ch:3,cat:"program",pre:["SCL340"]},
-      SCL415:{name:"Strategic Management",ch:3,cat:"program",pre:["SCL340"]},
-      SCL490:{name:"Capstone Design",ch:3,cat:"program",pre:["87CH"]},
-      // Electives (pick 3 = 9 CH)
-      SCL420:{name:"Emerging Technologies and Supply Chain",ch:3,cat:"elective",pre:["MIS300","MGT340"]},
-      SCL430:{name:"AI Applications in Logistics",ch:3,cat:"elective",pre:["MIS300"]},
-      SCL435:{name:"Blockchain Applications in Supply Chain",ch:3,cat:"elective",pre:["MIS300"]},
-      SCL440:{name:"Supply Chain Strategy",ch:3,cat:"elective",pre:["SCL415"]},
-      SCL445:{name:"Advanced Transportation",ch:3,cat:"elective",pre:["SCL202"]},
-      SCL450:{name:"Decision Tools for SCM and Logistics",ch:3,cat:"elective",pre:["SCL202"]},
-      SCL455:{name:"Research and Negotiation",ch:3,cat:"elective",pre:["SCL415"]},
-      SCL460:{name:"Supply Chain Planning and Inventory Control",ch:3,cat:"elective",pre:["SCL315","SCL415"]},
-      SCL480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},
-      SCL495:{name:"Special Topics in Supply Chain",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-
-  BIE: {
-    name: "Biomedical and Instruments Engineering",abbr:"BIE",totalCH:132,color:"#e879f9",
-    criticalPath:["CHM101","BIE101","BIE203","BIE301","BIE304"],genMathSci:"eng",
-    courses:{...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical and Electronic Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Electrical and Electronic Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Introduction to Energy and Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG204:{name:"Engineering Mechanics",ch:3,cat:"college",pre:["PHY102"]},ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Engineering Project Management and Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]},
-      BIE101:{name:"Human Biology for Engineers",ch:3,cat:"program",pre:["CHM101"]},BIE201:{name:"Biochemistry",ch:3,cat:"program",pre:["CHM101","BIE101"]},BIE202:{name:"Biochemistry Lab",ch:1,cat:"program",pre:[],coreq:"BIE201"},BIE203:{name:"Human Anatomy and Physiology",ch:3,cat:"program",pre:["BIE101"]},BIE301:{name:"Biofluids and Biomedical Transport",ch:3,cat:"program",pre:["ENG204","MAT240"]},BIE302:{name:"Biomaterials",ch:3,cat:"program",pre:["BIE203","BIE202"]},BIE303:{name:"Biomaterials Lab",ch:1,cat:"program",pre:[],coreq:"BIE302"},BIE304:{name:"Biomechanics",ch:3,cat:"program",pre:["BIE203","BIE301"]},BIE350:{name:"Signal Measurement & Control Systems",ch:3,cat:"program",pre:["ENG205","ENG304"]},BIE351:{name:"Signal Measurement Lab",ch:1,cat:"program",pre:[],coreq:"BIE350"},BIE352:{name:"Instrumentation & Data Acquisition",ch:3,cat:"program",pre:["BIE350"]},BIE353:{name:"Instrumentation Lab",ch:1,cat:"program",pre:[],coreq:"BIE352"},BIE371:{name:"Medical Imaging Systems",ch:3,cat:"program",pre:["MAT201","BIE350"]},BIE451:{name:"Instrumentation Design",ch:3,cat:"program",pre:["BIE352"]},BIE452:{name:"Instrumentation Design Lab",ch:1,cat:"program",pre:[],coreq:"BIE451"},BIE401:{name:"Biomedical Molecular and Nano Devices",ch:3,cat:"program",pre:["BIE304","BIE371"]},BIE490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},BIE491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["BIE490"]},
-      BIE453:{name:"Electromagnetics Principles",ch:3,cat:"elective",pre:["BIE350"]},BIE454:{name:"Instrumentation Electronics",ch:3,cat:"elective",pre:["BIE350"]},BIE460:{name:"Process Instrumentation",ch:3,cat:"elective",pre:["BIE352"]},BIE461:{name:"Safety and Reliability",ch:3,cat:"elective",pre:["BIE451"]},BIE462:{name:"Communication Protocols",ch:3,cat:"elective",pre:["BIE352"]},BIE466:{name:"Sensors Design",ch:3,cat:"elective",pre:["BIE451"]},BIE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},BIE410:{name:"Biomechanics & Modelling of Human Movement",ch:3,cat:"elective",pre:["BIE302","BIE304"]},BIE411:{name:"Cellular and Molecular Biomechanics",ch:3,cat:"elective",pre:["BIE201","BIE304"]},BIE412:{name:"Rehabilitation Engineering",ch:3,cat:"elective",pre:["BIE304"]},BIE413:{name:"Biomedical Algorithms and Solutions",ch:3,cat:"elective",pre:["BIE304"]},BIE414:{name:"Image Processing",ch:3,cat:"elective",pre:["BIE371"]},BIE415:{name:"Biomedical Optics",ch:3,cat:"elective",pre:["BIE302","BIE371"]},BIE416:{name:"Medical Devices Design and Manufacturing",ch:3,cat:"elective",pre:["BIE302","BIE304"]},BIE495:{name:"Special Topics in Biomedical Eng",ch:3,cat:"elective",pre:["APPROVAL"]},BIE496:{name:"Special Topics in Instrumentation Eng",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-  RME: {
-    name: "Robotics and Mechatronics Engineering",abbr:"RME",totalCH:132,color:"#f97316",
-    criticalPath:["ENG205","ENG209","RME301","RME401"],genMathSci:"eng",
-    courses:{...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical and Electronic Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Electrical and Electronic Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Introduction to Energy and Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics and Strength of Materials",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Engineering Project Management and Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]},
-      ESE211:{name:"Industrial Electronics",ch:3,cat:"program",pre:["ENG205"]},RME301:{name:"Intro to Mechatronics and Robotics",ch:3,cat:"program",pre:["ENG205","ENG209"]},RME302:{name:"Intro to Mechatronics Lab",ch:1,cat:"program",pre:[],coreq:"RME301"},RME304:{name:"Instrumentation, Sensors, and Actuators",ch:3,cat:"program",pre:["ESE211"]},RME352:{name:"Digital Systems Design & Microcontrollers",ch:3,cat:"program",pre:["ENG206","ENG207"]},RME353:{name:"Digital Systems & Microcontrollers Lab",ch:1,cat:"program",pre:[],coreq:"RME352"},RME360:{name:"Control Systems Analysis & Design",ch:3,cat:"program",pre:["MAT201","MAT240"]},RME361:{name:"Control Systems Lab",ch:1,cat:"program",pre:[],coreq:"RME360"},MSE211:{name:"Intro to Materials Science and Engineering",ch:3,cat:"program",pre:["ENG209"]},RME363:{name:"Engineering Mechanisms for Automation",ch:3,cat:"program",pre:["ENG209"]},RME401:{name:"Robotics, Dynamics & Controls",ch:3,cat:"program",pre:["RME301"]},RME402:{name:"Robotics, Dynamics & Controls Lab",ch:1,cat:"program",pre:[],coreq:"RME401"},RME403:{name:"Computer-Integrated Manufacturing",ch:3,cat:"program",pre:["RME301"]},RME430:{name:"Digital Signal Processing",ch:3,cat:"program",pre:["ENG304","RME352"]},RME431:{name:"Digital Signal Processing Lab",ch:1,cat:"program",pre:[],coreq:"RME430"},RME460:{name:"Design of Machine Elements",ch:3,cat:"program",pre:["RME304"]},RME490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},RME491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["RME490"]},
-      RME484:{name:"Autonomous & Intelligent Mobile Robots",ch:3,cat:"elective",pre:["RME360","RME401"]},RME481:{name:"Machine Vision and Image Processing",ch:3,cat:"elective",pre:["RME430"]},RME482:{name:"Robotic Manipulators Design",ch:3,cat:"elective",pre:["MSE211","RME352"]},RME483:{name:"Robotics Project Management",ch:3,cat:"elective",pre:["RME301","ENG309"]},RME480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},RME485:{name:"Advanced PLC",ch:3,cat:"elective",pre:["RME352"]},ESE312:{name:"Electrical Machines & Drives",ch:3,cat:"elective",pre:["ESE211"]},RME486:{name:"Nano Mechatronics",ch:3,cat:"elective",pre:["RME352"]},RME487:{name:"Machine Learning for Mechatronics",ch:3,cat:"elective",pre:["RME360"]},RME495:{name:"Special Topics in Mechatronics",ch:3,cat:"elective",pre:["APPROVAL"]},RME496:{name:"Special Topics in Robotics",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-  ESEE: {
-    name: "Energy Systems Engineering",abbr:"ESE",totalCH:132,color:"#eab308",
-    criticalPath:["MAT240","PHY102","ESE301","ESE302"],genMathSci:"eng",
-    courses:{...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical and Electronic Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Electrical and Electronic Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Introduction to Energy and Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics and Strength of Materials",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Engineering Project Management and Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]},
-      ESE211:{name:"Industrial Electronics",ch:3,cat:"program",pre:["ENG205"]},ESE301:{name:"Thermodynamics",ch:3,cat:"program",pre:["MAT240","PHY102"]},ESE302:{name:"Thermo-fluid Systems",ch:3,cat:"program",pre:["ESE301","ENG308"]},ESE305:{name:"Thermal Systems Lab",ch:1,cat:"program",pre:["ESE302"]},RME304:{name:"Instrumentation, Sensors, and Actuators",ch:3,cat:"program",pre:["ESE211"]},RME352:{name:"Digital Systems Design & Microcontrollers",ch:3,cat:"program",pre:["ENG206","ENG207"]},RME353:{name:"Digital Systems & Microcontrollers Lab",ch:1,cat:"program",pre:[],coreq:"RME352"},ESE312:{name:"Electrical Machines and Drives",ch:3,cat:"program",pre:["ESE211"]},ESE313:{name:"Electrical Machines and Drives Lab",ch:1,cat:"program",pre:["ESE312","ENG206"]},ESE314:{name:"Power Systems Analysis",ch:3,cat:"program",pre:["ENG308","ESE312"]},ESE315:{name:"Power Systems Lab",ch:1,cat:"program",pre:["ESE314","ESE313"]},ESE321:{name:"Renewable Energy Conversion Systems",ch:3,cat:"program",pre:["ENG208","ESE301","ESE312"]},RME360:{name:"Control Systems Analysis & Design",ch:3,cat:"program",pre:["MAT201","MAT240"]},ESE401:{name:"Power Plants",ch:3,cat:"program",pre:["ESE302"]},ESE402:{name:"Energy Efficient Buildings",ch:3,cat:"program",pre:["ESE302","ENG209"]},ESE425:{name:"Renewable Energy Lab",ch:1,cat:"program",pre:["ESE321","ESE401"],coreq:"ESE315"},ESE490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},ESE491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["ESE490"]},
-      ESE440:{name:"Solar Thermal Systems",ch:3,cat:"elective",pre:["ESE302","ESE321"]},ESE441:{name:"Energy Storage Systems",ch:3,cat:"elective",pre:["ESE302","ESE314"]},ESE442:{name:"Refrigeration",ch:3,cat:"elective",pre:["ESE302","ESE321"]},ESE443:{name:"Petroleum Engineering",ch:3,cat:"elective",pre:["ESE302","ESE321"]},ESE450:{name:"Power Electronics Conversion",ch:3,cat:"elective",pre:["ESE312"]},ESE451:{name:"Power Systems Protection",ch:3,cat:"elective",pre:["ESE314"]},ESE452:{name:"Power Systems Gen, Trans & Distribution",ch:3,cat:"elective",pre:["ESE314"]},ESE453:{name:"Smart Grids",ch:3,cat:"elective",pre:["ESE314","ESE321"]},ESE461:{name:"Techno-economic Modeling",ch:3,cat:"elective",pre:["ESE314","ESE321","ESE401"]},ESE462:{name:"Fuel Cell & Hydrogen Production",ch:3,cat:"elective",pre:["ESE321"]},ESE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},ESE495:{name:"Special Topics in Energy Systems",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-  BAE: {
-    name: "Bioresources and Agricultural Engineering",abbr:"BAE",totalCH:132,color:"#84cc16",
-    criticalPath:["BIO101","BAE101","BAE360"],genMathSci:"eng",
-    courses:{...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical and Electronic Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Electrical and Electronic Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Introduction to Energy and Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics and Strength of Materials",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Engineering Project Management and Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]},
-      BIO101:{name:"Biology",ch:3,cat:"program",pre:[]},BAE101:{name:"Intro to Bioresources and Agriculture Eng",ch:3,cat:"program",pre:["BIO101"],coreq:"BAE102"},BAE102:{name:"Intro to Bioresources Eng Lab",ch:1,cat:"program",pre:[],coreq:"BAE101"},ESE211:{name:"Industrial Electronics",ch:3,cat:"program",pre:["ENG205"]},BAE230:{name:"Mechanical Systems in Agriculture I",ch:3,cat:"program",pre:["ENG209"],coreq:"BAE231"},BAE231:{name:"Mechanical Systems I Lab",ch:1,cat:"program",pre:[],coreq:"BAE230"},BAE310:{name:"Remote Sensing Data and Methods",ch:3,cat:"program",pre:["MAT201"]},BAE320:{name:"Agricultural Structures Planning",ch:3,cat:"program",pre:["PHY102","CHM101"]},BAE330:{name:"Mechanical Systems in Agriculture II",ch:3,cat:"program",pre:["BAE230"],coreq:"BAE331"},BAE331:{name:"Mechanical Systems II Lab",ch:1,cat:"program",pre:[],coreq:"BAE330"},BAE340:{name:"Microbiology and Food Safety",ch:3,cat:"program",pre:["CHM101","BIO101"],coreq:"BAE341"},BAE341:{name:"Microbiology and Food Safety Lab",ch:1,cat:"program",pre:[],coreq:"BAE340"},BAE360:{name:"Bioresource Engineering",ch:3,cat:"program",pre:["BAE101","ENG208"]},BAE430:{name:"Mechanical Systems in Agriculture III",ch:3,cat:"program",pre:["BAE330"]},BAE450:{name:"Agricultural Robotics and Automation",ch:3,cat:"program",pre:["ENG205"],coreq:"BAE451"},BAE451:{name:"Agricultural Robotics Lab",ch:1,cat:"program",pre:[],coreq:"BAE450"},BAE490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},BAE491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["BAE490"]},
-      BAE401:{name:"Lean Six Sigma",ch:3,cat:"elective",pre:["BAE101"]},BAE402:{name:"Controlled Environment Systems",ch:3,cat:"elective",pre:["BAE360"]},BAE423:{name:"Integrated Food-Water-Energy Solutions",ch:3,cat:"elective",pre:["BAE340"]},BAE427:{name:"Ecological Systems Engineering Design",ch:3,cat:"elective",pre:["BAE320"]},BAE455:{name:"Bioconversion",ch:3,cat:"elective",pre:["BAE320","BAE330"]},BAE461:{name:"Aquaponics Engineering",ch:3,cat:"elective",pre:["BAE360"]},BAE463:{name:"Biosystems Analysis and Design",ch:3,cat:"elective",pre:["BAE360"]},BAE468:{name:"Controlled Environment Engineering",ch:3,cat:"elective",pre:["BAE360"]},BAE471:{name:"Food Processing Plant Sanitation",ch:3,cat:"elective",pre:["BAE340"]},BAE473:{name:"Food Safety",ch:3,cat:"elective",pre:["BAE340"]},BAE475:{name:"Geomatics",ch:3,cat:"elective",pre:["BAE310"]},BAE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},BAE495:{name:"Special Topics in Bioresources",ch:3,cat:"elective",pre:["APPROVAL"]},BAE496:{name:"Special Topics in Agricultural Eng",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-  EES: {
-    name: "Environmental and Sustainability Engineering",abbr:"EES",totalCH:132,color:"#34d399",
-    criticalPath:["CHM101","EES301","EES306"],genMathSci:"eng",
-    courses:{...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical and Electronic Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Electrical and Electronic Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Introduction to Energy and Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics and Strength of Materials",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Engineering Project Management and Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]},
-      BIO101:{name:"Biology I",ch:3,cat:"program",pre:[]},ESE301:{name:"Thermodynamics",ch:3,cat:"program",pre:["MAT240","PHY102"]},ESE302:{name:"Thermo-fluid Systems",ch:3,cat:"program",pre:["ESE301","ENG308"]},ESE305:{name:"Thermal Systems Lab",ch:1,cat:"program",pre:["ESE302"]},EES301:{name:"Environmental Chemistry",ch:3,cat:"program",pre:["CHM101","CHM105"]},EES302:{name:"Environmental Management Systems",ch:3,cat:"program",pre:["ENG208"]},EES303:{name:"Sustainability Fundamentals",ch:3,cat:"program",pre:["ENG208","BIO101"]},EES304:{name:"Water Supply and Sewerage Engineering",ch:3,cat:"program",pre:["ESE302"]},EES305:{name:"Water Supply Eng Lab",ch:1,cat:"program",pre:[],coreq:"EES304"},EES306:{name:"Air and Water Pollution Control",ch:3,cat:"program",pre:["BIO101","EES301"]},EES307:{name:"Soil, Solid, and Hazardous Waste Control",ch:3,cat:"program",pre:["ENG209","EES301"]},EES308:{name:"Waste Management and Conversion",ch:3,cat:"program",pre:["ENG208","EES301"]},EES401:{name:"Environmental Impact Assessment",ch:3,cat:"program",pre:["ESE302","ENG304"]},EES402:{name:"Sustainable Buildings Design",ch:3,cat:"program",pre:["ENG208","EES303"]},EES490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},EES491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["EES490"]},
-      EES451:{name:"Carbon Footprint Analysis",ch:3,cat:"elective",pre:["EES302","EES303"]},EES452:{name:"Economics for Environmental Policy",ch:3,cat:"elective",pre:["EES302","EES303","EES401"]},EES453:{name:"Climate Changes and Mitigation",ch:3,cat:"elective",pre:["EES302","EES303","EES401"]},EES454:{name:"Natural Ecosystems Conservation",ch:3,cat:"elective",pre:["EES302","EES303","EES401"]},EES455:{name:"Intro to Risk Assessment",ch:3,cat:"elective",pre:["ENG309"]},EES461:{name:"Kuwait's Environmental Issues",ch:3,cat:"elective",pre:["EES302","EES303"]},EES480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},EES495:{name:"Special Topics in Environmental Eng",ch:3,cat:"elective",pre:["APPROVAL"]},EES496:{name:"Special Topics in Sustainability Eng",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-  MSE: {
-    name: "Material Science and Engineering",abbr:"MSE",totalCH:132,color:"#a78bfa",
-    criticalPath:["ENG209","MSE211","MSE302","MSE308"],genMathSci:"eng",
-    courses:{...MATH_SCI_ENG,...GEN_ED_COURSES,
-      PHY105:{name:"Physics Lab I",ch:1,cat:"college",pre:[],coreq:"PHY101"},MAT102:{name:"Calculus II",ch:3,cat:"college",pre:["MAT101"]},MAT201:{name:"Calculus III",ch:3,cat:"college",pre:["MAT102"]},PHY102:{name:"Physics II",ch:3,cat:"college",pre:["PHY101","MAT101"]},PHY107:{name:"Physics II Lab",ch:1,cat:"college",pre:["PHY105"],coreq:"PHY102"},CHM101:{name:"Chemistry I",ch:3,cat:"college",pre:[]},CHM105:{name:"Chemistry I Lab",ch:1,cat:"college",pre:[],coreq:"CHM101"},MAT202:{name:"Linear Algebra",ch:3,cat:"college",pre:["MAT101"]},MAT240:{name:"Differential Equations",ch:3,cat:"college",pre:["MAT102"]},ENG205:{name:"Electrical and Electronic Circuits",ch:3,cat:"college",pre:["PHY102","MAT102"]},ENG206:{name:"Electrical and Electronic Circuits Lab",ch:1,cat:"college",pre:["ENG205","PHY107"]},ENG207:{name:"Programming",ch:3,cat:"college",pre:["MAT202"]},ENG208:{name:"Introduction to Energy and Sustainability",ch:3,cat:"college",pre:["PHY102","CHM105"]},ENG209:{name:"Statics and Strength of Materials",ch:3,cat:"college",pre:["PHY102","CHM101"]},ENG304:{name:"Engineering Probability & Statistics",ch:3,cat:"college",pre:["MAT102"]},ENG308:{name:"Numerical Methods",ch:3,cat:"college",pre:["MAT202","MAT240"]},ENG309:{name:"Engineering Project Management and Economics",ch:3,cat:"college",pre:["ENG207","ENG208"]},
-      MSE211:{name:"Intro to Materials Science and Engineering",ch:3,cat:"program",pre:["ENG209"]},MSE301:{name:"Thermodynamics of Materials",ch:3,cat:"program",pre:["CHM101"]},MSE302:{name:"Materials Characterization",ch:3,cat:"program",pre:["MSE211"]},MSE303:{name:"Structure & Bonding of Solids",ch:3,cat:"program",pre:["MSE211"]},MSE304:{name:"Physical Chemistry",ch:3,cat:"program",pre:["MSE302"]},MSE305:{name:"Electronic Properties of Materials",ch:3,cat:"program",pre:["MSE211"]},MSE306:{name:"Mechanical and Thermal Properties",ch:3,cat:"program",pre:["MSE211"]},MSE307:{name:"Nanomaterials",ch:3,cat:"program",pre:["MSE303"]},MSE308:{name:"Materials Characterization Lab 1",ch:1,cat:"program",pre:[],coreq:"MSE302"},MSE309:{name:"Materials Synthesis Laboratory",ch:1,cat:"program",pre:["MSE303","MSE304"]},MSE310:{name:"Electronic Device Fabrication Lab",ch:1,cat:"program",pre:["ENG206"],coreq:"MSE305"},MSE311:{name:"Material Property Measurement Lab",ch:1,cat:"program",pre:["MSE305","MSE306"]},MSE400:{name:"Diffusion and Kinetics in Materials",ch:3,cat:"program",pre:["MSE301","MSE303"]},MSE401:{name:"Phase Diagrams & Phase Transformations",ch:3,cat:"program",pre:["MAT201","MSE306","MSE308"]},MSE402:{name:"Materials for Renewable Energy & Storage",ch:3,cat:"program",pre:["MSE305","MSE306","ENG208"]},MSE403:{name:"Materials Characterization Lab 2",ch:1,cat:"program",pre:["MSE302","MSE308"]},MSE490:{name:"Capstone Design 1",ch:3,cat:"program",pre:["96CH"]},MSE491:{name:"Capstone Design 2",ch:3,cat:"program",pre:["MSE490"]},
-      MSE382:{name:"Organic Chemistry",ch:3,cat:"elective",pre:["CHM101"]},MSE484:{name:"Material Synthesis Techniques",ch:3,cat:"elective",pre:["MSE303"]},MSE485:{name:"Material Modeling & Simulation",ch:3,cat:"elective",pre:["MSE302"]},MSE486:{name:"Polymer Science and Engineering",ch:3,cat:"elective",pre:["MSE302"]},MSE487:{name:"Composite Material Design",ch:3,cat:"elective",pre:["MSE302"]},MSE488:{name:"Materials Eng for Harsh Environments",ch:3,cat:"elective",pre:["MSE302"]},MSE480:{name:"Internship",ch:3,cat:"elective",pre:["APPROVAL"]},MSE495:{name:"Special Topics in Material Science",ch:3,cat:"elective",pre:["APPROVAL"]},
-    }
-  },
-};
-
-// ============================================================
-// COLOR SCHEMES
-// ============================================================
-const CAT_COLORS = {
-  gen:{border:"#64748b",bg:"#0f1115",text:"#94a3b8"},
-  "gen-elec":{border:"#475569",bg:"#0d0f12",text:"#64748b"},
-  college:{border:"#22c55e",bg:"#0a1a0e",text:"#86efac"},
-  "college-cs":{border:"#a855f7",bg:"#120a1a",text:"#d8b4fe"},
-  program:{border:"#ef4444",bg:"#1a0a0a",text:"#fca5a5"},
-  elective:{border:"#f59e0b",bg:"#1a170a",text:"#fcd34d"},
-};
-
-// ============================================================
-// APP
-// ============================================================
 function App(){
-  const[selectedMajor,setSelectedMajor]=useState(null);
-  const[completed,setCompleted]=useState(new Set());
-  const[current,setCurrent]=useState(new Set());
-  const[hovered,setHovered]=useState(null);
-  const[filter,setFilter]=useState("all");
-  const[showElectives,setShowElectives]=useState(true);
-  const[showGenElec,setShowGenElec]=useState(false);
+  const[sel,setSel]=useState(null);const[done,setDone]=useState(new Set());const[cur,setCur]=useState(new Set());const[hov,setHov]=useState(null);const[filt,setFilt]=useState("all");const[sge,setSge]=useState(false);const[name,setName]=useState("");const[yr,setYr]=useState(1);const[sem,setSem]=useState("fall");
+  const m=sel?M[sel]:null;const courses=sel?build(sel):{};const tc=m?m.ch:0;const cp=m?m.cp:[];
+  const tog=(c)=>{if(!courses[c])return;const d=done.has(c),r=cur.has(c);if(d)setDone(p=>{const n=new Set(p);n.delete(c);return n});else if(r){setCur(p=>{const n=new Set(p);n.delete(c);return n});setDone(p=>new Set(p).add(c))}else{if(courses[c].pre.every(p=>done.has(p)||p==="APPROVAL"||p.includes("CH")))setCur(p=>new Set(p).add(c))}};
+  const avail=useMemo(()=>{const s=new Set();Object.entries(courses).forEach(([c,v])=>{if(done.has(c)||cur.has(c))return;if(v.pre.every(p=>done.has(p)||p==="APPROVAL"||p.includes("CH")))s.add(c)});return s},[done,cur,courses]);
+  const dCH=useMemo(()=>{let t=0;done.forEach(c=>{if(courses[c])t+=courses[c].ch});return t},[done,courses]);
+  const cCH=useMemo(()=>{let t=0;cur.forEach(c=>{if(courses[c])t+=courses[c].ch});return t},[cur,courses]);
+  const rem=tc-dCH;
+  const semLeft=(()=>{let r=rem,n=0;while(r>0){r-=Math.min(r,15);n++;if(r<=0)break;r-=Math.min(r,15);n++;if(r<=0)break;if(r>0){r-=Math.min(r,3);n++}}return n})();
+  const grp=useMemo(()=>{const g={gen:[],"gen-elec":[],college:[],"college-cs":[],program:[],elective:[]};Object.entries(courses).forEach(([c,v])=>{if(filt==="program"&&v.cat!=="program"&&v.cat!=="elective")return;if(filt==="college-all"&&v.cat!=="college"&&v.cat!=="college-cs")return;if(filt==="gen"&&v.cat!=="gen"&&v.cat!=="gen-elec")return;if(!sge&&v.cat==="gen-elec")return;if(g[v.cat])g[v.cat].push(c)});return g},[courses,filt,sge]);
 
-  const major = selectedMajor ? MAJORS[selectedMajor] : null;
-  const courses = major ? major.courses : {};
-
-  const toggle=(code)=>{
-    if(!courses[code])return;
-    const isDone=completed.has(code);
-    const isCur=current.has(code);
-    if(isDone){setCompleted(p=>{const n=new Set(p);n.delete(code);return n});setCurrent(p=>{const n=new Set(p);n.delete(code);return n})}
-    else if(isCur){setCurrent(p=>{const n=new Set(p);n.delete(code);return n});setCompleted(p=>new Set(p).add(code))}
-    else{const c=courses[code];const ok=c.pre.every(p=>completed.has(p)||p==="APPROVAL"||p.includes("CH"));if(ok)setCurrent(p=>new Set(p).add(code))}
-  };
-
-  const available=useMemo(()=>{
-    const s=new Set();
-    Object.entries(courses).forEach(([code,c])=>{
-      if(completed.has(code)||current.has(code))return;
-      if(c.pre.every(p=>completed.has(p)||p==="APPROVAL"||p.includes("CH")))s.add(code);
-    });return s;
-  },[completed,current,courses]);
-
-  const completedCH=useMemo(()=>{let t=0;completed.forEach(c=>{if(courses[c])t+=courses[c].ch});return t},[completed,courses]);
-  const currentCH=useMemo(()=>{let t=0;current.forEach(c=>{if(courses[c])t+=courses[c].ch});return t},[current,courses]);
-
-  const grouped=useMemo(()=>{
-    const cats={gen:[],college:[],"college-cs":[],program:[],elective:[],"gen-elec":[]};
-    Object.entries(courses).forEach(([code,c])=>{
-      if(filter!=="all"){
-        if(filter==="program"&&c.cat!=="program"&&c.cat!=="elective")return;
-        if(filter==="college-all"&&c.cat!=="college"&&c.cat!=="college-cs")return;
-        if(filter==="gen"&&c.cat!=="gen"&&c.cat!=="gen-elec")return;
-        if(filter!=="program"&&filter!=="college-all"&&filter!=="gen"&&c.cat!==filter)return;
-      }
-      if(!showElectives&&c.cat==="elective")return;
-      if(!showGenElec&&c.cat==="gen-elec")return;
-      if(cats[c.cat])cats[c.cat].push(code);
-    });
-    return cats;
-  },[courses,filter,showElectives,showGenElec]);
-
-  const totalCH = major ? major.totalCH : 0;
-  const critPath = major ? major.criticalPath : [];
-
-  // Major selection screen
-  if(!selectedMajor){
-    return(
-      <div style={{minHeight:"100vh",background:"#06070b",padding:"40px 24px"}}>
-        <div style={{maxWidth:900,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:48}}>
-            <div style={{fontSize:11,letterSpacing:4,color:"#64748b",textTransform:"uppercase",marginBottom:12,fontFamily:"'DM Mono',monospace"}}>Abdullah Al Salem University</div>
-            <h1 style={{fontSize:36,fontWeight:900,background:"linear-gradient(135deg,#f8fafc,#64748b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>Course Prerequisite Map</h1>
-            <p style={{color:"#475569",fontSize:14,lineHeight:1.6}}>Select your major to view the full course map with prerequisites, progress tracking, and critical path analysis.</p>
-            <p style={{color:"#334155",fontSize:11,marginTop:8,fontFamily:"'DM Mono',monospace"}}>By Abdulrahman Alamry — Based on Official 2023-2024 / 2024-2025 Major Sheets</p>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260,1fr))",gap:16}}>
-            {Object.entries(MAJORS).map(([key,m])=>(
-              <div key={key} onClick={()=>{setSelectedMajor(key);setCompleted(new Set());setCurrent(new Set())}}
-                style={{background:"#0d0f14",border:`1.5px solid #1e293b`,borderRadius:12,padding:"20px 24px",cursor:"pointer",transition:"all 0.3s",position:"relative",overflow:"hidden"}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor=m.color;e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow=`0 8px 32px ${m.color}22`}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor="#1e293b";e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none"}}>
-                <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:m.color,opacity:0.6}}/>
-                <div style={{fontSize:12,fontWeight:800,color:m.color,letterSpacing:1,fontFamily:"'DM Mono',monospace",marginBottom:6}}>{m.abbr}</div>
-                <div style={{fontSize:16,fontWeight:700,color:"#e2e8f0",marginBottom:8,lineHeight:1.3}}>{m.name}</div>
-                <div style={{fontSize:11,color:"#64748b",fontFamily:"'DM Mono',monospace"}}>{m.totalCH} Credit Hours • {Object.keys(m.courses).length} Courses</div>
-              </div>
-            ))}
-          </div>
-          <div style={{textAlign:"center",marginTop:40,fontSize:10,color:"#1e293b",fontFamily:"'DM Mono',monospace"}}>Not an official university resource • Data sourced from official major sheet PDFs</div>
+  if(!sel)return(
+    <div style={{minHeight:"100vh",background:"#05060a",padding:"40px 20px"}}>
+      <div style={{maxWidth:960,margin:"0 auto",textAlign:"center"}}>
+        <div className="mono" style={{fontSize:10,letterSpacing:4,color:"#334155",textTransform:"uppercase",marginBottom:10}}>Abdullah Al Salem University</div>
+        <h1 style={{fontSize:36,fontWeight:900,background:"linear-gradient(135deg,#f8fafc,#475569)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>Course Prerequisite Map</h1>
+        <p style={{color:"#475569",fontSize:13,maxWidth:560,margin:"0 auto 24px",lineHeight:1.6}}>Select your major to view all courses, prerequisites, critical path, and track your progress. Enter your name below for PDF export.</p>
+        <input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} style={{background:"#0a0c12",border:"1px solid #1e293b",borderRadius:8,padding:"10px 16px",color:"#e2e8f0",fontSize:14,fontFamily:"inherit",outline:"none",width:300,maxWidth:"90%",marginBottom:28}}/>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12,textAlign:"left"}}>
+          {Object.entries(M).map(([k,v])=>(
+            <div key={k} onClick={()=>{setSel(k);setDone(new Set());setCur(new Set())}} style={{background:"#0a0c12",border:"1.5px solid #1e293b",borderRadius:10,padding:"16px 20px",cursor:"pointer",transition:"all .25s",position:"relative",overflow:"hidden"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=v.color;e.currentTarget.style.transform="translateY(-2px)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="#1e293b";e.currentTarget.style.transform="none"}}>
+              <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:v.color,opacity:.4}}/>
+              <div className="mono" style={{fontSize:11,fontWeight:700,color:v.color,marginBottom:3}}>{v.abbr}</div>
+              <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0",marginBottom:4}}>{v.name}</div>
+              <div className="mono" style={{fontSize:9,color:"#475569"}}>{v.ch} CH</div>
+              <div className="mono" style={{fontSize:8,color:"#334155",marginTop:3}}>{v.cpd}</div>
+            </div>
+          ))}
         </div>
+        <div className="mono" style={{marginTop:32,fontSize:8,color:"#1e293b"}}>By Abdulrahman Alamry • Not an official university resource</div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  const catLabel={gen:"General Education",college:"College Requirements (Math & Science)","college-cs":"College Requirements (Computing)","gen-elec":"General Education Electives",program:`${major.abbr} Program Requirements`,elective:`${major.abbr} Program Electives`};
-
+  const lb=CL(m.abbr);
   return(
-    <div style={{minHeight:"100vh",background:"#06070b",fontFamily:"'DM Sans',sans-serif"}}>
-      {/* Header */}
-      <div style={{background:"linear-gradient(180deg,#0c0e14,#06070b)",borderBottom:"1px solid #1e293b",padding:"20px 24px"}}>
+    <div style={{minHeight:"100vh",background:"#05060a"}}>
+      <div className="print-only" style={{padding:16,borderBottom:"2px solid #000",textAlign:"center"}}>
+        <h2 style={{color:"#000",fontSize:18}}>AASU — {m.name} Course Plan</h2>
+        {name&&<p style={{color:"#333",fontSize:13}}>Student: {name}</p>}
+        <p style={{color:"#666",fontSize:10}}>Completed: {dCH}/{tc} CH • Remaining: {rem} CH • Est. {semLeft} semesters left • {new Date().toLocaleDateString()}</p>
+      </div>
+      <div className="no-print" style={{borderBottom:"1px solid #111318",padding:"14px 20px"}}>
         <div style={{maxWidth:1200,margin:"0 auto"}}>
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-            <button onClick={()=>setSelectedMajor(null)} style={{background:"none",border:"1px solid #1e293b",borderRadius:6,padding:"4px 10px",color:"#64748b",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>← Majors</button>
-            <div style={{width:10,height:10,borderRadius:"50%",background:major.color,boxShadow:`0 0 12px ${major.color}66`}}/>
-            <span style={{fontSize:11,color:"#64748b",letterSpacing:2,textTransform:"uppercase",fontFamily:"'DM Mono',monospace"}}>Abdullah Al Salem University</span>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
+            <button onClick={()=>setSel(null)} style={{background:"none",border:"1px solid #1e293b",borderRadius:5,padding:"3px 8px",color:"#64748b",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>← Majors</button>
+            <div style={{width:7,height:7,borderRadius:"50%",background:m.color}}/>
+            <span className="mono" style={{fontSize:10,color:"#475569"}}>{m.abbr}</span>
+            <div style={{flex:1}}/>
+            <select value={yr} onChange={e=>setYr(+e.target.value)} style={{background:"#0a0c12",border:"1px solid #1e293b",borderRadius:5,padding:"3px 6px",color:"#e2e8f0",fontSize:10,fontFamily:"inherit"}}><option value={1}>Year 1</option><option value={2}>Year 2</option><option value={3}>Year 3</option><option value={4}>Year 4</option><option value={5}>Year 5</option></select>
+            <select value={sem} onChange={e=>setSem(e.target.value)} style={{background:"#0a0c12",border:"1px solid #1e293b",borderRadius:5,padding:"3px 6px",color:"#e2e8f0",fontSize:10,fontFamily:"inherit"}}><option value="fall">Fall</option><option value="spring">Spring</option><option value="summer">Summer</option></select>
+            <button onClick={()=>window.print()} style={{background:m.color+"22",border:`1px solid ${m.color}44`,borderRadius:5,padding:"3px 10px",color:m.color,cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:"inherit"}}>Print / PDF</button>
           </div>
-          <h1 style={{fontSize:24,fontWeight:900,color:"#f8fafc",margin:"4px 0"}}>{major.name}</h1>
-          <p style={{color:"#475569",fontSize:11,fontFamily:"'DM Mono',monospace"}}>{major.totalCH} CH • Click courses to track progress • By Abdulrahman Alamry</p>
+          <h1 style={{fontSize:20,fontWeight:800,color:"#f8fafc"}}>{m.name}</h1>
+          {name&&<p style={{color:m.color,fontSize:11,fontWeight:600}}>{name}</p>}
         </div>
       </div>
-
-      {/* Stats */}
-      <div style={{maxWidth:1200,margin:"12px auto 0",padding:"0 24px"}}>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          <div style={{flex:"1 1 180px",background:"#0d0f14",border:"1px solid #1e293b",borderRadius:10,padding:"12px 16px"}}>
-            <div style={{fontSize:9,color:"#64748b",letterSpacing:2,textTransform:"uppercase",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>Progress</div>
-            <div><span style={{fontSize:24,fontWeight:900,color:"#22c55e"}}>{completedCH}</span><span style={{color:"#475569",fontSize:12}}> / {totalCH} CH</span></div>
-            <div style={{height:3,background:"#1e293b",borderRadius:2,marginTop:6,overflow:"hidden"}}><div style={{height:"100%",width:`${(completedCH/totalCH)*100}%`,background:`linear-gradient(90deg,${major.color},${major.color}88)`,borderRadius:2,transition:"width 0.4s"}}/></div>
-          </div>
-          <div style={{flex:"1 1 140px",background:"#0d0f14",border:"1px solid #1e293b",borderRadius:10,padding:"12px 16px"}}>
-            <div style={{fontSize:9,color:"#64748b",letterSpacing:2,textTransform:"uppercase",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>Taking Now</div>
-            <div><span style={{fontSize:24,fontWeight:900,color:"#3b82f6"}}>{current.size}</span><span style={{color:"#475569",fontSize:12}}> ({currentCH} CH)</span></div>
-          </div>
-          <div style={{flex:"1 1 280px",background:"#0d0f14",border:"1px solid #1e293b",borderRadius:10,padding:"12px 16px"}}>
-            <div style={{fontSize:9,color:"#64748b",letterSpacing:2,textTransform:"uppercase",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>Critical Path → First {major.abbr} Course</div>
-            <div style={{display:"flex",gap:3,marginTop:4}}>{critPath.map(c=><div key={c} style={{flex:1,height:6,borderRadius:3,background:completed.has(c)?'#22c55e':current.has(c)?'#3b82f6':'#1e293b',transition:"background 0.3s"}} title={c}/>)}</div>
-            <div style={{fontSize:9,color:"#64748b",marginTop:4,fontFamily:"'DM Mono',monospace"}}>{critPath.map((c,i)=><span key={c}><span style={{color:completed.has(c)?"#22c55e":current.has(c)?"#3b82f6":"#475569",fontWeight:completed.has(c)||current.has(c)?700:400}}>{c}</span>{i<critPath.length-1&&<span style={{color:"#334155"}}> → </span>}</span>)}</div>
-          </div>
+      <div style={{maxWidth:1200,margin:"8px auto 0",padding:"0 20px"}}>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+          <div className="stat-box" style={{flex:"1 1 140px",background:"#0a0c12",border:"1px solid #1e293b",borderRadius:7,padding:"9px 12px"}}><div className="mono" style={{fontSize:8,color:"#475569",letterSpacing:1.5,textTransform:"uppercase",marginBottom:2}}>Progress</div><div><span style={{fontSize:20,fontWeight:900,color:"#22c55e"}}>{dCH}</span><span style={{color:"#475569",fontSize:10}}> / {tc}</span></div><div style={{height:2,background:"#1e293b",borderRadius:1,marginTop:4,overflow:"hidden"}}><div style={{height:"100%",width:`${(dCH/tc)*100}%`,background:m.color,transition:"width .4s"}}/></div></div>
+          <div className="stat-box" style={{flex:"1 1 100px",background:"#0a0c12",border:"1px solid #1e293b",borderRadius:7,padding:"9px 12px"}}><div className="mono" style={{fontSize:8,color:"#475569",letterSpacing:1.5,textTransform:"uppercase",marginBottom:2}}>Taking</div><div><span style={{fontSize:20,fontWeight:900,color:"#3b82f6"}}>{cur.size}</span><span style={{color:"#475569",fontSize:10}}> ({cCH} CH)</span></div></div>
+          <div className="stat-box" style={{flex:"1 1 120px",background:"#0a0c12",border:"1px solid #1e293b",borderRadius:7,padding:"9px 12px"}}><div className="mono" style={{fontSize:8,color:"#475569",letterSpacing:1.5,textTransform:"uppercase",marginBottom:2}}>Semesters Left</div><div><span style={{fontSize:20,fontWeight:900,color:"#f59e0b"}}>{semLeft}</span><span style={{color:"#475569",fontSize:10}}> ({rem} CH)</span></div><div className="mono" style={{fontSize:7,color:"#334155"}}>15 CH/reg + 3 CH/summer</div></div>
+          <div className="stat-box" style={{flex:"1 1 240px",background:"#0a0c12",border:"1px solid #1e293b",borderRadius:7,padding:"9px 12px"}}><div className="mono" style={{fontSize:8,color:"#475569",letterSpacing:1.5,textTransform:"uppercase",marginBottom:2}}>Critical Path</div><div style={{display:"flex",gap:2,marginTop:2}}>{cp.map(c=><div key={c} style={{flex:1,height:4,borderRadius:2,background:done.has(c)?'#22c55e':cur.has(c)?'#3b82f6':'#1e293b'}} title={c}/>)}</div><div className="mono" style={{fontSize:7,color:"#475569",marginTop:2}}>{m.cpd}</div></div>
         </div>
       </div>
-
-      {/* Filters */}
-      <div style={{maxWidth:1200,margin:"10px auto 0",padding:"0 24px",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-        <span style={{fontSize:9,color:"#475569",letterSpacing:2,textTransform:"uppercase",fontFamily:"'DM Mono',monospace"}}>Show:</span>
-        {[{k:"all",l:"All"},{k:"gen",l:"Gen Ed"},{k:"college-all",l:"College"},{k:"program",l:major.abbr+" Core + Electives"}].map(f=>
-          <button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"4px 10px",borderRadius:5,fontSize:10,fontWeight:600,border:filter===f.k?`1px solid ${major.color}`:"1px solid #1e293b",background:filter===f.k?"#1e293b":"transparent",color:filter===f.k?"#e2e8f0":"#64748b",cursor:"pointer",fontFamily:"inherit"}}>{f.l}</button>
-        )}
+      <div className="no-print" style={{maxWidth:1200,margin:"6px auto 0",padding:"0 20px",display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+        {[{k:"all",l:"All"},{k:"gen",l:"Gen Ed"},{k:"college-all",l:"College"},{k:"program",l:m.abbr}].map(f=><button key={f.k} onClick={()=>setFilt(f.k)} style={{padding:"2px 8px",borderRadius:4,fontSize:9,fontWeight:600,border:filt===f.k?`1px solid ${m.color}`:"1px solid #1e293b",background:filt===f.k?"#1e293b":"transparent",color:filt===f.k?"#e2e8f0":"#64748b",cursor:"pointer",fontFamily:"inherit"}}>{f.l}</button>)}
         <div style={{flex:1}}/>
-        <button onClick={()=>setShowGenElec(!showGenElec)} style={{padding:"4px 10px",borderRadius:5,fontSize:10,fontWeight:600,border:showGenElec?"1px solid #475569":"1px solid #1e293b",background:showGenElec?"#1e293b":"transparent",color:showGenElec?"#e2e8f0":"#64748b",cursor:"pointer",fontFamily:"inherit"}}>{showGenElec?"▼":"▶"} Gen Electives</button>
-        <button onClick={()=>{setCompleted(new Set());setCurrent(new Set())}} style={{padding:"4px 10px",borderRadius:5,fontSize:10,fontWeight:600,border:"1px solid #1e293b",background:"transparent",color:"#ef4444",cursor:"pointer",fontFamily:"inherit"}}>Reset</button>
+        <button onClick={()=>setSge(!sge)} style={{padding:"2px 8px",borderRadius:4,fontSize:9,fontWeight:600,border:"1px solid #1e293b",background:sge?"#1e293b":"transparent",color:sge?"#e2e8f0":"#475569",cursor:"pointer",fontFamily:"inherit"}}>{sge?"Hide":"Show"} Gen Electives</button>
+        <button onClick={()=>{setDone(new Set());setCur(new Set())}} style={{padding:"2px 8px",borderRadius:4,fontSize:9,fontWeight:600,border:"1px solid #1e293b",background:"transparent",color:"#ef4444",cursor:"pointer",fontFamily:"inherit"}}>Reset</button>
       </div>
-
-      {/* Legend */}
-      <div style={{maxWidth:1200,margin:"8px auto 0",padding:"0 24px",display:"flex",gap:14,flexWrap:"wrap"}}>
-        {[{c:"#22c55e",l:"Completed"},{c:"#3b82f6",l:"Taking"},{c:"#fbbf24",l:"Available"},{c:"#475569",l:"Locked"}].map(x=>
-          <div key={x.l} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:2,background:x.c}}/><span style={{fontSize:9,color:"#64748b",fontFamily:"'DM Mono',monospace"}}>{x.l}</span></div>
-        )}
+      <div className="no-print" style={{maxWidth:1200,margin:"4px auto 0",padding:"0 20px",display:"flex",gap:10}}>
+        {[{c:"#22c55e",l:"Done"},{c:"#3b82f6",l:"Taking"},{c:"#fbbf24",l:"Available"},{c:"#475569",l:"Locked"}].map(x=><div key={x.l} style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:6,height:6,borderRadius:2,background:x.c}}/><span className="mono" style={{fontSize:7,color:"#64748b"}}>{x.l}</span></div>)}
       </div>
-
-      {/* Course Grid by Category */}
-      <div style={{maxWidth:1200,margin:"14px auto 40px",padding:"0 24px"}}>
+      <div style={{maxWidth:1200,margin:"10px auto 24px",padding:"0 20px"}}>
         {["gen","gen-elec","college","college-cs","program","elective"].map(cat=>{
-          const codes=grouped[cat];
-          if(!codes||codes.length===0)return null;
-          const catC=CAT_COLORS[cat]||CAT_COLORS.gen;
-          return(
-            <div key={cat} style={{marginBottom:14}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                <div style={{fontSize:9,color:catC.text,letterSpacing:2,textTransform:"uppercase",background:catC.bg,padding:"3px 10px",borderRadius:4,border:`1px solid ${catC.border}33`,whiteSpace:"nowrap",fontFamily:"'DM Mono',monospace"}}>{catLabel[cat]||cat}</div>
-                <div style={{flex:1,height:1,background:"#1e293b"}}/>
-                <span style={{fontSize:9,color:"#334155",fontFamily:"'DM Mono',monospace"}}>{codes.length} courses</span>
-              </div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {codes.sort().map(code=>{
-                  const course=courses[code];
-                  const isDone=completed.has(code),isCur=current.has(code),isAvail=available.has(code);
-                  const isCP=critPath.includes(code);
-                  const isH=hovered===code;
-                  let bc="#1e293b",bg="#0a0b10",op=0.4;
-                  if(isDone){bc="#22c55e";bg="#0a150a";op=1}
-                  else if(isCur){bc="#3b82f6";bg="#0a0e1a";op=1}
-                  else if(isAvail){bc="#fbbf24";bg="#15140a";op=1}
-                  if(isCP&&!isDone){bc=isCur?"#3b82f6":isAvail?"#f97316":"#ef4444"}
-                  return(
-                    <div key={code} onMouseEnter={()=>setHovered(code)} onMouseLeave={()=>setHovered(null)} onClick={()=>toggle(code)}
-                      style={{position:"relative",width:168,minHeight:62,background:bg,border:`1.5px solid ${bc}`,borderRadius:7,padding:"8px 10px",cursor:"pointer",opacity:op,transition:"all 0.2s",transform:isH?"translateY(-2px)":"none",boxShadow:isH?`0 4px 16px ${bc}33`:"none"}}>
-                      <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:catC.border,borderRadius:"7px 7px 0 0",opacity:.4}}/>
-                      {(isDone||isCur)&&<div style={{position:"absolute",top:6,right:6,width:7,height:7,borderRadius:"50%",background:isDone?"#22c55e":"#3b82f6",boxShadow:`0 0 6px ${isDone?"#22c55e":"#3b82f6"}66`}}/>}
-                      <div style={{fontSize:10,fontWeight:800,color:catC.text,letterSpacing:.3,marginBottom:1,fontFamily:"'DM Mono',monospace"}}>{code}<span style={{fontWeight:400,color:"#475569",marginLeft:5,fontSize:8}}>{course.ch}CH</span></div>
-                      <div style={{fontSize:9,color:isDone?"#86efac":isCur?"#93c5fd":"#94a3b8",fontWeight:600,lineHeight:1.3}}>{course.name}</div>
-                      {isH&&<div style={{fontSize:8,color:"#64748b",lineHeight:1.5,marginTop:3,borderTop:"1px solid #1e293b",paddingTop:3,fontFamily:"'DM Mono',monospace"}}>
-                        {course.pre.length>0&&!course.pre.every(p=>p==="APPROVAL"||p.includes("CH"))&&<div>Pre: {course.pre.filter(p=>p!=="APPROVAL"&&!p.includes("CH")).join(", ")}</div>}
-                        {course.pre.some(p=>p.includes("CH"))&&<div>Req: Pass {course.pre.find(p=>p.includes("CH"))}</div>}
-                        {course.coreq&&<div>Co-req: {course.coreq}</div>}
-                      </div>}
-                      {isCP&&!isDone&&<div style={{position:"absolute",bottom:3,right:5,fontSize:7,color:"#ef4444",fontWeight:700,letterSpacing:1,fontFamily:"'DM Mono',monospace"}}>CRITICAL</div>}
-                    </div>
-                  );
+          const codes=grp[cat];if(!codes||!codes.length)return null;const cc=CC[cat]||CC.gen;
+          let sections=[{l:lb[cat],c:codes}];
+          if(cat==="gen-elec"){const gs={};codes.forEach(c=>{const g=courses[c]?.g||"Other";if(!gs[g])gs[g]=[];gs[g].push(c)});sections=Object.entries(gs).map(([g,c])=>({l:g,c}));}
+          return(<div key={cat} style={{marginBottom:10}}>
+            {cat!=="gen-elec"&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+              <div className="mono cat-header" style={{fontSize:8,color:cc.t,letterSpacing:1.5,textTransform:"uppercase",background:"#0a0c12",padding:"2px 7px",borderRadius:3,border:`1px solid ${cc.b}22`,whiteSpace:"nowrap"}}>{lb[cat]}</div>
+              {cat==="elective"&&<span className="mono" style={{fontSize:8,color:"#f59e0b"}}>{m.er}</span>}
+              <div style={{flex:1,height:1,background:"#0f1015"}}/>
+            </div>}
+            {sections.map((s,i)=>(<div key={i} style={{marginBottom:cat==="gen-elec"?4:0}}>
+              {cat==="gen-elec"&&<div className="mono" style={{fontSize:7,color:"#334155",marginBottom:2,marginLeft:2}}>{s.l}</div>}
+              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                {s.c.sort().map(code=>{const v=courses[code];if(!v)return null;const id=done.has(code),ic=cur.has(code),ia=avail.has(code),icp=cp.includes(code),ih=hov===code;
+                  let bc="#1e293b",bg="#08090d",op=0.38;if(id){bc="#22c55e";bg="#071007";op=1}else if(ic){bc="#3b82f6";bg="#070a12";op=1}else if(ia){bc="#fbbf24";bg="#100f07";op=1}if(icp&&!id)bc=ic?"#3b82f6":ia?"#f97316":"#ef4444";
+                  return(<div key={code} className="course-card" onMouseEnter={()=>setHov(code)} onMouseLeave={()=>setHov(null)} onClick={()=>tog(code)}
+                    style={{position:"relative",width:155,minHeight:50,background:bg,border:`1.5px solid ${bc}`,borderRadius:5,padding:"6px 8px",cursor:"pointer",opacity:op,transition:"all .15s",transform:ih?"translateY(-1px)":"none",boxShadow:ih?`0 3px 12px ${bc}18`:"none"}}>
+                    <div style={{position:"absolute",top:0,left:0,right:0,height:1.5,background:cc.b,borderRadius:"5px 5px 0 0",opacity:.25}}/>
+                    {(id||ic)&&<div style={{position:"absolute",top:4,right:4,width:5,height:5,borderRadius:"50%",background:id?"#22c55e":"#3b82f6"}}/>}
+                    <div className="mono" style={{fontSize:9,fontWeight:700,color:cc.t,marginBottom:1}}>{code}<span style={{fontWeight:400,color:"#2a2f3a",marginLeft:3,fontSize:7}}>{v.ch}CH</span></div>
+                    <div style={{fontSize:8.5,color:id?"#86efac":ic?"#93c5fd":"#8892a4",fontWeight:600,lineHeight:1.2}}>{v.name}</div>
+                    {ih&&<div className="mono" style={{fontSize:6.5,color:"#475569",lineHeight:1.4,marginTop:2,borderTop:"1px solid #151820",paddingTop:2}}>
+                      {v.pre.length>0&&!v.pre.every(p=>p==="APPROVAL"||p.includes("CH"))&&<div>Pre: {v.pre.filter(p=>p!=="APPROVAL"&&!p.includes("CH")).join(", ")}</div>}
+                      {v.pre.some(p=>p.includes("CH"))&&<div>Req: Pass {v.pre.find(p=>p.includes("CH"))}</div>}
+                      {v.coreq&&<div style={{color:"#f59e0b"}}>Co-req: {v.coreq}</div>}
+                    </div>}
+                    {icp&&!id&&<div className="mono" style={{position:"absolute",bottom:2,right:3,fontSize:6,color:"#ef4444",fontWeight:700}}>CRITICAL</div>}
+                  </div>);
                 })}
               </div>
-            </div>
-          );
+            </div>))}
+          </div>);
         })}
       </div>
-
-      {/* How to use */}
-      <div style={{maxWidth:1200,margin:"0 auto",padding:"0 24px 16px"}}>
-        <div style={{background:"#0d0f14",border:"1px solid #1e293b",borderRadius:8,padding:"12px 16px",fontSize:10,color:"#64748b",lineHeight:1.8,fontFamily:"'DM Mono',monospace"}}>
-          <b style={{color:"#94a3b8"}}>How to use:</b> Click <span style={{color:"#fbbf24"}}>available (yellow)</span> → taking. Click <span style={{color:"#3b82f6"}}>taking (blue)</span> → completed. Click <span style={{color:"#22c55e"}}>completed (green)</span> → undo. Hover for prerequisites.
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{borderTop:"1px solid #1e293b",padding:"14px 24px",textAlign:"center"}}>
-        <div style={{fontSize:9,color:"#1e293b",lineHeight:1.8,fontFamily:"'DM Mono',monospace"}}>Made by Abdulrahman Alamry — SWE Student at AASU • Based on official 2023-2024 / 2024-2025 Major Sheets • Not an official university resource</div>
-      </div>
+      <div className="no-print" style={{maxWidth:1200,margin:"0 auto",padding:"0 20px 10px"}}><div className="mono" style={{background:"#0a0c12",border:"1px solid #111318",borderRadius:5,padding:"8px 12px",fontSize:8,color:"#475569",lineHeight:1.7}}><b style={{color:"#94a3b8"}}>Usage:</b> Click <span style={{color:"#fbbf24"}}>yellow</span> → taking. Click <span style={{color:"#3b82f6"}}>blue</span> → done. Click <span style={{color:"#22c55e"}}>green</span> → undo. <b style={{color:"#f59e0b"}}>Co-req</b> = must take together. Use <b>Print / PDF</b> button to save your plan.</div></div>
+      <div style={{borderTop:"1px solid #0f1015",padding:"10px 20px",textAlign:"center"}}><div className="mono" style={{fontSize:7,color:"#1e293b"}}>By Abdulrahman Alamry — SWE @ AASU • Official 2023-2024/2024-2025 Major Sheets • Not an official resource</div></div>
     </div>
   );
 }
